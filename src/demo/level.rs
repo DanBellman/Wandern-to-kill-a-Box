@@ -7,7 +7,7 @@ use avian2d::prelude::*;
 use crate::{
     asset_tracking::LoadResource,
     demo::{
-        player::{PlayerAssets, player},
+        player::{/*PlayerAssets*/ player},
         shooting::Target,
     },
     screens::Screen,
@@ -68,7 +68,7 @@ impl FromWorld for LevelAssets {
 pub fn spawn_level(
     mut commands: Commands,
     level_assets: Res<LevelAssets>,
-    _player_assets: Res<PlayerAssets>,
+    //_player_assets: Res<PlayerAssets>,
     _texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     commands.spawn((

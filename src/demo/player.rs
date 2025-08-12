@@ -17,8 +17,8 @@ use crate::{
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
 
-    app.register_type::<PlayerAssets>();
-    app.load_resource::<PlayerAssets>();
+    //app.register_type::<PlayerAssets>();
+    //app.load_resource::<PlayerAssets>();
 
     // Record directional input as movement controls.
     app.add_systems(
@@ -93,23 +93,23 @@ fn record_player_directional_input(
     }
 }
 
-#[derive(Resource, Asset, Clone, Reflect)]
-#[reflect(Resource)]
-pub struct PlayerAssets {
-    #[dependency]
-    pub steps: Vec<Handle<AudioSource>>,
-}
+// #[derive(Resource, Asset, Clone, Reflect)]
+// #[reflect(Resource)]
+// pub struct PlayerAssets {
+//     #[dependency]
+//     pub steps: Vec<Handle<AudioSource>>,
+// }
 
-impl FromWorld for PlayerAssets {
-    fn from_world(world: &mut World) -> Self {
-        let assets = world.resource::<AssetServer>();
-        Self {
-            steps: vec![
-                assets.load("audio/sound_effects/step1.ogg"),
-                assets.load("audio/sound_effects/step2.ogg"),
-                assets.load("audio/sound_effects/step3.ogg"),
-                assets.load("audio/sound_effects/step4.ogg"),
-            ],
-        }
-    }
-}
+// impl FromWorld for PlayerAssets {
+//     fn from_world(world: &mut World) -> Self {
+//         let assets = world.resource::<AssetServer>();
+//         Self {
+//             steps: vec![
+//                 assets.load("audio/sound_effects/step1.ogg"),
+//                 assets.load("audio/sound_effects/step2.ogg"),
+//                 assets.load("audio/sound_effects/step3.ogg"),
+//                 assets.load("audio/sound_effects/step4.ogg"),
+//             ],
+//         }
+//     }
+// }

@@ -20,7 +20,6 @@ use crate::{AppSystems, PausableSystems, demo::shop::PlayerUpgrades};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<MovementController>();
-    app.register_type::<ScreenWrap>();
 
     app.add_systems(
         Update,
@@ -63,7 +62,7 @@ fn apply_movement(
     mut movement_query: Query<(&MovementController, &mut LinearVelocity, &Transform), With<RigidBody>>,
 ) {
     for (controller, mut velocity, _transform) in &mut movement_query {
-        let speed_multiplier = 1.0 + (upgrades.speed_boost as f32 * 0.3); /
+        let speed_multiplier = 1.0 + (upgrades.speed_boost as f32 * 0.3);
         velocity.x = controller.max_speed * speed_multiplier * controller.intent.x;
 
     }
