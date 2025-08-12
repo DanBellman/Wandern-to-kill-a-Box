@@ -6,7 +6,7 @@ This project was generated using the [Bevy New 2D](https://github.com/TheBevyFlo
 
 Demo video, very rough game for now : D please dont be too disappointed, it is a work in progress. : D
 
-[LINK HERE]
+[Demo video](https://github.com/DanBellman/Wandern-to-kill-a-Box/issues/1#issue-3316101367)
 
 A directly playable version link here to my website using leptos incoming here. [LINK HERE]
 
