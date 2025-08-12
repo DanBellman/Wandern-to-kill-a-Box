@@ -1,0 +1,2 @@
+- You will play the adventure mode. Whenever you clear a level and go to the next location, you will unlock the level you cleared, and you can go back to that level and start from there any time you want again. Closing the game will save your progress. 
+- 

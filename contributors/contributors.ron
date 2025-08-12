@@ -1,0 +1,28 @@
+Contributors(
+    Assets: (
+        myBackground:
+            ""
+            "Daniel Bellmann",
+        OtherBackground:
+            "
+            Contributor,
+            // More contributors
+            ",
+    ),
+
+    Code: (
+        "Daniel Bellmann",
+        "Other contributor"
+    ),
+
+    Ideas: (
+        ""
+        "Daniel Bellmann",
+
+    ),
+
+    Testers: (
+        "Daniel Bellmann,"
+    )
+
+)
