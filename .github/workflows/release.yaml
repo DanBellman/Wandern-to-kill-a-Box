@@ -190,7 +190,7 @@ jobs:
 
       - name: Build (Web)
         if: ${{ env.is_platform_enabled == 'true' && matrix.platform == 'web' }}
-        run: bevy build --locked --release --yes web --bundle --verbose
+        run: bevy build --locked --release --yes web --bundle --verbose --no-default-features
 
       - name: Add web bundle to app (Web)
         if: ${{ env.is_platform_enabled == 'true' && matrix.platform == 'web' }}
