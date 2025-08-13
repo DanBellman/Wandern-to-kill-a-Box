@@ -6,6 +6,8 @@ This project was generated using the [Bevy New 2D](https://github.com/TheBevyFlo
 
 Demo video, very rough game for now : D please dont be too disappointed, it is a work in progress. : D
 
+You can also download it in the Release Page on the side.
+
 ![Demo video](https://github.com/user-attachments/assets/93610777-aa0a-46dd-a929-d42b6050c0f7)
 
 A directly playable version link here to my website using leptos incoming here. [LINK HERE]
