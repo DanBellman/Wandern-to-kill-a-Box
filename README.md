@@ -1,4 +1,4 @@
-# Wanderlust to kill a Box
+# Wandern to kill a Box
 
 This project was generated using the [Bevy New 2D](https://github.com/TheBevyFlock/bevy_new_2d) template.
 
