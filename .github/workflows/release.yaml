@@ -17,7 +17,7 @@ on:
 # Configure the release workflow by editing the following values.
 env:
   # The base filename of the binary produced by `cargo build`.
-  cargo_build_binary_name: foxtrot
+  cargo_build_binary_name: BoxSlayer2d
 
   # The path to the assets directory.
   assets_path: assets
@@ -43,7 +43,7 @@ env:
   # The base filename of the binary in the package produced by this workflow.
   # Applies to Windows, macOS, and Linux releases.
   # Defaults to `cargo_build_binary_name` if commented out.
-  #app_binary_name: foxtrot
+  #app_binary_name: BoxSlayer2d
 
   # The name of the `.zip` or `.dmg` file produced by this workflow.
   # Defaults to `app_binary_name` if commented out.
@@ -75,7 +75,7 @@ jobs:
       - name: Do nothing
         run: "true"
     outputs:
-      upload_to_itch: ${{ env.upload_to_itch }}
+      upload_to_itch: ""
 
   # Determine the version number for this workflow.
   get-version:
@@ -88,54 +88,11 @@ jobs:
       # Use the input from workflow dispatch, or fall back to the git tag.
       version: ${{ inputs.version || steps.tag.outputs.tag }}
 
-  bake-assets:
-    name: Bake Assets
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.toolchain }}
-
-      - name: Create tools directory
-        run: mkdir baking_tools
-
-      - name: Install kram
-        run: |
-          mkdir -p baking_tools/kram
-          cd baking_tools/kram
-          wget https://github.com/alecazam/kram/releases/download/v1.7.30/kram-linux.zip
-          unzip kram-linux.zip
-          chmod +x kram
-          cd ..
-          mv kram kram-linux
-          ln -s kram-linux/kram kram
-
-      - name: Install ImageMagick
-        uses: mfinelli/setup-imagemagick@v6
-
-      - name: Bake assets
-        run: |
-          PATH="$PATH:$PWD/baking_tools"
-          python3 scripts/bake_assets.py
-          rm -rf assets
-          mv assets_baked assets
-
-      - name: Upload assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: assets
-          path: assets
-          retention-days: 1
 
   # Build and package a release for each platform.
   build:
     needs:
       - get-version
-      - bake-assets
     env:
       version: ${{ needs.get-version.outputs.version }}
     strategy:
@@ -204,16 +161,6 @@ jobs:
         with:
           lfs: ${{ env.git_lfs }}
 
-      - name: Remove unbaked assets
-        if: ${{ env.is_platform_enabled == 'true' }}
-        run: rm -rf assets
-
-      - name: Download assets
-        if: ${{ env.is_platform_enabled == 'true' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: assets
-          path: assets
 
       - name: Install Rust toolchain
         if: ${{ env.is_platform_enabled == 'true' }}
@@ -233,8 +180,6 @@ jobs:
         if: ${{ env.is_platform_enabled == 'true' && matrix.platform == 'linux' }}
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
 
-      - name: Active release cargo config
-        run: mv .cargo/config_web.toml .cargo/config.toml
 
       - name: Install Bevy CLI
         run: cargo install --git=https://github.com/TheBevyFlock/bevy_cli --locked bevy_cli --all-features
