@@ -8,6 +8,9 @@ Demo video, very rough game for now : D please dont be too disappointed, it is a
 
 [Demo video](https://github.com/DanBellman/Wandern-to-kill-a-Box/issues/1#issue-3316101367)
 
+<img src="https://github.com/DanBellman/Wandern-to-kill-a-Box/issues/1#issue-3316101367", width="400">
+
+
 A directly playable version link here to my website using leptos incoming here. [LINK HERE]
 
 ## Controls:
