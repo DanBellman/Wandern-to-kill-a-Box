@@ -10,6 +10,12 @@ Demo video, very rough game for now : D please dont be too disappointed, it is a
 
 A directly playable version link here to my website using leptos incoming here. [LINK HERE]
 
+## Controls:
+- Right click to shoot
+- Shoot the yellow box in the middle to spawn coins. Collect them. 
+- Go behind the shops and buy weapons and upgrades.
+- Use Q to toogle between bought weapons.
+
 
 ## Inspiration
 This game is inspired by the rather old flash game called 'Coinbox Hero'. It was a really fun game that I played as a kid oftentimes. Check it out wherever it is available: https://armorgames.com/play/12247/coinbox-hero/ . The creator of that game is: John, https://armorgames.com/user/John , leave him a nice commecnt if you also played and enjoyed the game as a kid. While he doesnt seem to be active anymore, or have any other socials, maybe one day he will read your and my thanks. So: Thanks John for making a part of so many childhoods. 

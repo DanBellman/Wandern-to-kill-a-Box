@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy::text::FontSmoothing;
-use crate::{screens::Screen, AppSystems, PausableSystems};
+use crate::{screens::Screen, AppSystems, PausableSystems, demo::shop::PlayerUpgrades};
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<GameTimer>();
@@ -166,7 +166,10 @@ fn update_coin_buffer(
     time: Res<Time>,
     mut buffer: ResMut<CoinBuffer>,
 ) {
-    buffer.drain(time.delta_secs());
+    // Only drain if there are coins in the buffer
+    if buffer.current > 0.0 {
+        buffer.drain(time.delta_secs());
+    }
 }
 
 /// Update the buffer bar fill

@@ -1,11 +1,12 @@
 //! Player-specific behavior.
 
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use avian2d::prelude::*;
+use crate::asset_tracking::LoadResource;
 
 use crate::{
     AppSystems, PausableSystems,
-    asset_tracking::LoadResource,
     demo::{
         movement::{
             MovementController,
@@ -17,13 +18,16 @@ use crate::{
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
 
-    //app.register_type::<PlayerAssets>();
-    //app.load_resource::<PlayerAssets>();
+    app.register_type::<PlayerAssets>();
+    app.load_resource::<PlayerAssets>();
 
     // Record directional input as movement controls.
     app.add_systems(
         Update,
-        record_player_directional_input.in_set(AppSystems::RecordInput)
+        (
+            record_player_directional_input.in_set(AppSystems::RecordInput),
+            update_player_size_on_window_resize,
+        )
             .in_set(PausableSystems),
     );
 }
@@ -31,34 +35,34 @@ pub(super) fn plugin(app: &mut App) {
 /// The player character.
 pub fn player(
     max_speed: f32,
+    player_assets: &PlayerAssets,
 ) -> impl Bundle {
-    // Simple green box player
+    let player_height = 48.0;
+    let player_width = 32.0;
 
     (
         Name::new("Player"),
         Player,
         Sprite {
-            color: Color::srgb(0.0, 0.8, 0.2), // Green box
-            custom_size: Some(Vec2::new(32.0, 48.0)), // Reasonable player size
+            image: player_assets.player_sprite.clone(),
+            custom_size: Some(Vec2::new(player_width, player_height)),
             ..default()
         },
-        Transform::from_translation(Vec3::new(0.0, -227.0, 0.0)), // Position a tiny bit up
+        Transform::from_translation(Vec3::new(0.0, -227.0, 0.0)), //FIXME: use variable instead of hardcoded value
         MovementController {
             max_speed,
             ..default()
         },
-        ScreenLimit, // Re-enable screen limits to prevent walking past walls
-        // Physics components for collision detection only
+        ScreenLimit,
         RigidBody::Kinematic,
-        LinearVelocity::ZERO, // Explicitly add LinearVelocity component
-        GravityScale(0.0), // No gravity - floating movement
-        LockedAxes::ROTATION_LOCKED, // Prevent rotation
-        // Add collider for coin collection only
-        Collider::rectangle(32.0, 48.0), // Match sprite size
+        LinearVelocity::ZERO,
+        GravityScale(0.0),
+        LockedAxes::ROTATION_LOCKED,
+        Collider::rectangle(player_width, player_height),
         Sensor,
         CollisionEventsEnabled,
-        LinearDamping(0.0), // Remove damping that's slowing movement
-        AngularDamping(0.0), // Remove angular damping
+        LinearDamping(0.0),
+        AngularDamping(0.0),
     )
 }
 
@@ -71,45 +75,62 @@ fn record_player_directional_input(
     input: Res<ButtonInput<KeyCode>>,
     mut controller_query: Query<&mut MovementController, With<Player>>,
 ) {
-    // Collect directional input.
-    let mut intent = Vec2::ZERO;
+    let mut dir = Vec2::ZERO;
     if input.pressed(KeyCode::KeyW) || input.pressed(KeyCode::ArrowUp) {
-        intent.y += 1.0;
+        dir.y += 1.0;
     }
     if input.pressed(KeyCode::KeyS) || input.pressed(KeyCode::ArrowDown) {
-        intent.y -= 1.0;
+        dir.y -= 1.0;
     }
     if input.pressed(KeyCode::KeyA) || input.pressed(KeyCode::ArrowLeft) {
-        intent.x -= 1.0;
+        dir.x -= 1.0;
     }
     if input.pressed(KeyCode::KeyD) || input.pressed(KeyCode::ArrowRight) {
-        intent.x += 1.0;
+        dir.x += 1.0;
     }
 
-    let horizontal_intent = Vec2::new(intent.x, 0.0);
+    let horizontal_dir = Vec2::new(dir.x, 0.0);
 
     for mut controller in &mut controller_query {
-        controller.intent = horizontal_intent;
+        controller.intent = horizontal_dir;
     }
 }
 
-// #[derive(Resource, Asset, Clone, Reflect)]
-// #[reflect(Resource)]
-// pub struct PlayerAssets {
-//     #[dependency]
-//     pub steps: Vec<Handle<AudioSource>>,
-// }
+/// System that updates player size when window is resized to maintain proportions
+fn update_player_size_on_window_resize(
+    mut player_query: Query<&mut Sprite, With<Player>>,
+    window_query: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+) {
+    for _window in window_query.iter() {
+        let player_height = 48.0;
+        let player_width = 32.0;
 
-// impl FromWorld for PlayerAssets {
-//     fn from_world(world: &mut World) -> Self {
-//         let assets = world.resource::<AssetServer>();
-//         Self {
-//             steps: vec![
-//                 assets.load("audio/sound_effects/step1.ogg"),
-//                 assets.load("audio/sound_effects/step2.ogg"),
-//                 assets.load("audio/sound_effects/step3.ogg"),
-//                 assets.load("audio/sound_effects/step4.ogg"),
-//             ],
-//         }
-//     }
-// }
+        for mut sprite in player_query.iter_mut() {
+            sprite.custom_size = Some(Vec2::new(player_width, player_height));
+        }
+    }
+}
+
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
+pub struct PlayerAssets {
+    #[dependency]
+    pub player_sprite: Handle<Image>,
+    // #[dependency]
+    // pub steps: Vec<Handle<AudioSource>>,
+}
+
+impl FromWorld for PlayerAssets {
+    fn from_world(world: &mut World) -> Self {
+        let assets = world.resource::<AssetServer>();
+        Self {
+            player_sprite: assets.load("Player.exr"),
+            // steps: vec![
+            //     assets.load("audio/sound_effects/step1.ogg"),
+            //     assets.load("audio/sound_effects/step2.ogg"),
+            //     assets.load("audio/sound_effects/step3.ogg"),
+            //     assets.load("audio/sound_effects/step4.ogg"),
+            // ],
+        }
+    }
+}

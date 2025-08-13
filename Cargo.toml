@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 bevy = { version = "0.16.1", features = ["wayland", "exr", "hdr", "trace", "trace_tracy"] }
-avian2d = "0.3"
+avian2d = { version = "0.3", features = ["2d", "simd", "parallel"] }
 rand = "0.8"
 iyes_perf_ui = "0.5"
 # Compile low-severity logs out of native builds for performance.
@@ -37,7 +37,7 @@ tracing = { version = "0.1", features = [
 default = ["dev_native"]
 dev = [
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
-    "bevy/dynamic_linking",
+    # "bevy/dynamic_linking",
     "bevy/bevy_dev_tools",
     "bevy/bevy_ui_debug",
     # Improve error messages coming from Bevy
@@ -100,6 +100,7 @@ opt-level = 3
 debug-assertions = false
 
 [profile.release]
+debug = true
 # Compile the entire crate as one unit.
 # Slows compile times, marginal improvements.
 codegen-units = 1

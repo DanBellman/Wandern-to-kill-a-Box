@@ -18,12 +18,10 @@ pub(super) fn plugin(app: &mut App) {
         (
             handle_shooting,
             handle_laser_beam,
-            move_projectiles,
             handle_projectile_collisions,
             handle_laser_continuous_damage,
             collect_coins,
             update_money_display,
-            coin_magnet_effect,
         )
             .in_set(AppSystems::Update)
             .in_set(PausableSystems),
@@ -42,14 +40,14 @@ impl Projectile {
     pub fn get_coin_amount(&self) -> u32 {
         match self.weapon_type {
             WeaponType::Normal => 100,
-            WeaponType::RapidFire => 75,  // Lower per shot but fires faster
-            WeaponType::SpreadShot => 50, // Lower per shot but 3 shots
-            WeaponType::LaserBeam => 150, // Higher damage per projectile
-            WeaponType::Uzi => 50 , // Fast firing, lower damage
-            WeaponType::Sniper => 200, // High damage, single shot
-            WeaponType::Bazooka => 400, // High damage
-            WeaponType::Hammer => 300, // High damage melee
-            WeaponType::Sword => 250, // Medium-high damage melee
+            WeaponType::RapidFire => 75,
+            WeaponType::SpreadShot => 50,
+            WeaponType::LaserBeam => 150,
+            WeaponType::Uzi => 50 ,
+            WeaponType::Sniper => 200,
+            WeaponType::Bazooka => 400,
+            WeaponType::Hammer => 300,
+            WeaponType::Sword => 250,
         }
     }
 }
@@ -88,7 +86,6 @@ pub struct Money {
     pub amount: u32,
 }
 
-/// Handle right-click shooting
 fn handle_shooting(
     mouse_input: Res<ButtonInput<MouseButton>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
@@ -98,7 +95,6 @@ fn handle_shooting(
     mut commands: Commands,
     existing_laser_query: Query<Entity, With<LaserBeam>>,
 ) {
-    // Handle laser beam differently - continuous while held
     if upgrades.current_weapon == WeaponType::LaserBeam {
         if mouse_input.pressed(MouseButton::Right) {
             // Keep laser active, spawn if doesn't exist
@@ -126,7 +122,6 @@ fn handle_shooting(
         return;
     }
 
-    // Handle other weapons - single shot
     if mouse_input.just_pressed(MouseButton::Right) {
         if let (Ok((camera, camera_transform)), Ok(window), Ok(player_transform)) = (
             camera_query.single(),
@@ -134,28 +129,23 @@ fn handle_shooting(
             player_query.single(),
         ) {
             if let Some(cursor_pos) = window.cursor_position() {
-                // Convert cursor position to world coordinates
                 if let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
                     let player_pos = player_transform.translation.truncate();
                     let direction = (world_pos - player_pos).normalize();
 
-                    // Spawn projectiles based on current weapon
                     match upgrades.current_weapon {
                         WeaponType::Normal => {
                             spawn_projectile(&mut commands, player_pos, direction, WeaponType::Normal);
                         },
                         WeaponType::RapidFire => {
-                            // Rapid fire - just normal projectile for now (could add rate of fire later)
                             spawn_projectile(&mut commands, player_pos, direction, WeaponType::RapidFire);
                         },
                         WeaponType::SpreadShot => {
-                            // Spread shot - 3 projectiles
                             spawn_projectile(&mut commands, player_pos, direction, WeaponType::SpreadShot);
                             spawn_projectile(&mut commands, player_pos, direction.rotate(Vec2::from_angle(0.2)), WeaponType::SpreadShot);
                             spawn_projectile(&mut commands, player_pos, direction.rotate(Vec2::from_angle(-0.2)), WeaponType::SpreadShot);
                         },
                         WeaponType::LaserBeam => {
-                            // Laser beam - faster, longer projectile
                             //FIXME still buggy
                             spawn_laser_projectile(&mut commands, player_pos, direction, WeaponType::LaserBeam);
                         },
@@ -163,7 +153,7 @@ fn handle_shooting(
                             spawn_projectile(&mut commands, player_pos, direction, WeaponType::Uzi);
                         },
                         WeaponType::Sniper => {
-                            spawn_projectile(&mut commands, player_pos, direction, WeaponType::Sniper);
+                            spawn_sniper_projectile(&mut commands, player_pos, direction, WeaponType::Sniper);
                         },
                         WeaponType::Bazooka => {
                             spawn_projectile(&mut commands, player_pos, direction, WeaponType::Bazooka);
@@ -205,6 +195,30 @@ fn spawn_laser_projectile(commands: &mut Commands, start_pos: Vec2, direction: V
     ));
 }
 
+/// Spawn a sniper projectile (very fast, high damage, distinctive appearance)
+fn spawn_sniper_projectile(commands: &mut Commands, start_pos: Vec2, direction: Vec2, weapon_type: WeaponType) {
+    commands.spawn((
+        Name::new("Sniper Bullet"),
+        Projectile {
+            velocity: direction * 2000.0, // Much faster than normal bullets
+            lifetime: 6.0, // Longer range
+            weapon_type,
+        },
+        Sprite {
+            color: Color::srgb(1.0, 0.8, 0.0), // Golden bullet color
+            custom_size: Some(Vec2::new(2.0, 12.0)), // Thin, long bullet
+            ..default()
+        },
+        Transform::from_translation(start_pos.extend(5.0)),
+        RigidBody::Dynamic,
+        Collider::rectangle(1.0, 6.0),
+        Sensor,
+        LinearVelocity(direction * 2000.0), // Very high speed
+        GravityScale(0.0),
+        LockedAxes::ROTATION_LOCKED,
+    ));
+}
+
 /// Spawn a projectile from player toward target
 fn spawn_projectile(commands: &mut Commands, start_pos: Vec2, direction: Vec2, weapon_type: WeaponType) {
     commands.spawn((
@@ -227,23 +241,6 @@ fn spawn_projectile(commands: &mut Commands, start_pos: Vec2, direction: Vec2, w
         GravityScale(0.0), // no gravity on projectiles
         LockedAxes::ROTATION_LOCKED,
     ));
-}
-
-/// Move projectiles and handle lifetime
-fn move_projectiles(
-    mut projectile_query: Query<(Entity, &mut Projectile, &mut Transform)>,
-    mut commands: Commands,
-    time: Res<Time>,
-) {
-    for (entity, mut projectile, _transform) in &mut projectile_query {
-        // Updates lifetime
-        projectile.lifetime -= time.delta_secs();
-
-        // Remove projectile if lifetime expired
-        if projectile.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
-        }
-    }
 }
 
 /// Handle collisions between projectiles and targets using spatial query
@@ -270,32 +267,34 @@ fn handle_projectile_collisions(
                     commands.entity(projectile_entity).despawn();
                     let coin_amount = projectile.get_coin_amount();
                     spawn_weapon_coins(&mut commands, target_transform.translation.truncate(),
-                    coin_amount, &mut meshes, &mut materials);
+                    coin_amount, projectile.weapon_type, &mut meshes, &mut materials);
                 }
             }
         }
     }
 }
 
-/// Spawn coins based on weapon damage
+/// Spawn coins based on weapon type
 fn spawn_weapon_coins(
     commands: &mut Commands,
     position: Vec2,
     base_value: u32,
+    weapon_type: WeaponType,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     use std::f32::consts::TAU;
 
-    //FIXME
-    let coin_count = if base_value >= 120 {
-        5 // Laser beam
-    } else if base_value >= 100 {
-        4 // Normal weapon
-    } else if base_value >= 75 {
-        3 // Rapid fire
-    } else {
-        2 // Spread shot
+    let coin_count = match weapon_type {
+        WeaponType::Bazooka => 40,
+        WeaponType::Sniper => 20,
+        WeaponType::Hammer => 7,
+        WeaponType::Sword => 6,
+        WeaponType::LaserBeam => 5,
+        WeaponType::Normal => 4,
+        WeaponType::RapidFire => 3,
+        WeaponType::Uzi => 2,
+        WeaponType::SpreadShot => 2,
     };
 
     for i in 0..coin_count {
@@ -381,8 +380,8 @@ fn spawn_continuous_laser(commands: &mut Commands, start_pos: Vec2, direction: V
             length: laser_length,
         },
         Sprite {
-            color: Color::srgb(1.0, 0.3, 0.3), // Bright red laser beam
-            custom_size: Some(Vec2::new(laser_length, 3.0)), // Thin laser
+            color: Color::srgb(1.0, 0.3, 0.3),
+            custom_size: Some(Vec2::new(laser_length, 3.0)),
             ..default()
         },
         Transform::from_translation(start_pos.extend(6.0))
@@ -456,13 +455,11 @@ fn handle_laser_continuous_damage(
         }
 
         if is_being_hit {
-            // Continuous laser damage - spawn coins every 0.3 seconds
             target.laser_damage_timer += time.delta_secs();
             if target.laser_damage_timer >= 0.3 {
                 target.laser_damage_timer = 0.0;
 
-                // Laser beam coins - higher value for continuous damage
-                spawn_weapon_coins(&mut commands, target_transform.translation.truncate(), 120, &mut meshes, &mut materials);
+                spawn_weapon_coins(&mut commands, target_transform.translation.truncate(), 120, WeaponType::LaserBeam, &mut meshes, &mut materials);
             }
         } else {
             // Reset laser timer when not being hit
@@ -471,27 +468,3 @@ fn handle_laser_continuous_damage(
     }
 }
 
-/// Coin magnet effect - attracts coins to player
-fn coin_magnet_effect(
-    upgrades: Res<PlayerUpgrades>,
-    player_query: Query<&Transform, With<Player>>,
-    mut coin_query: Query<(&Transform, &mut LinearVelocity), (With<Coin>, Without<Player>)>,
-) {
-    if !upgrades.coin_magnet {
-        return;
-    }
-
-    if let Ok(player_transform) = player_query.single() {
-        for (coin_transform, mut coin_velocity) in &mut coin_query {
-            let distance = player_transform.translation.distance(coin_transform.translation);
-
-            if distance < 100.0 { // Magnet range
-                let direction = (player_transform.translation - coin_transform.translation).normalize();
-                let magnet_force = 300.0 / (distance * 0.1 + 1.0); // Stronger when closer
-
-                coin_velocity.x += direction.x * magnet_force * 0.016; // Approximate delta time
-                coin_velocity.y += direction.y * magnet_force * 0.016;
-            }
-        }
-    }
-}
