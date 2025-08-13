@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.16.1", features = ["wayland", "exr", "hdr"] }
+bevy = { version = "0.16.1", features = ["wayland", "exr", "hdr", "trace", "trace_tracy"] }
 avian2d = "0.3"
 rand = "0.8"
 iyes_perf_ui = "0.5"

@@ -61,8 +61,20 @@ pub enum WeaponType {
     #[default]
     Normal,
     RapidFire,
+    Uzi,
     SpreadShot,
     LaserBeam,
+    Sniper,
+    Bazooka,
+    Hammer,
+    Sword,
+    //FlameThrower
+    //BowAndArrow
+    //Fists
+    //Legs
+    //GiantSword
+    //UltraHammer
+    //UltraSniper //these ultra types of weapons are almost funny big
 }
 
 /// Detect when player is near a shop
@@ -75,7 +87,7 @@ fn detect_shop_proximity(
     mut shop_state: ResMut<ShopState>,
 ) {
     let player_entity = player_query.single().ok();
-    
+
     // Check for shop entry
     for CollisionStarted(entity1, entity2) in collision_events.read() {
         if let Some(player) = player_entity {
@@ -86,7 +98,7 @@ fn detect_shop_proximity(
             } else {
                 None
             };
-            
+
             if let Some(shop) = shop_entity {
                 if weapon_shop_query.contains(shop) {
                     shop_state.current_shop = Some(ShopType::Weapon);
@@ -98,7 +110,7 @@ fn detect_shop_proximity(
             }
         }
     }
-    
+
     // Check for shop exit
     for CollisionEnded(entity1, entity2) in collision_ended.read() {
         if let Some(player) = player_entity {
@@ -109,7 +121,7 @@ fn detect_shop_proximity(
             } else {
                 None
             };
-            
+
             if let Some(shop) = shop_entity {
                 if weapon_shop_query.contains(shop) || upgrade_shop_query.contains(shop) {
                     shop_state.current_shop = None;
@@ -144,10 +156,10 @@ fn handle_shop_input(
 fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
     let shop_title = match shop_state.current_shop {
         Some(ShopType::Weapon) => "WEAPON SHOP",
-        Some(ShopType::Upgrade) => "UPGRADE SHOP", 
+        Some(ShopType::Upgrade) => "UPGRADE SHOP",
         None => "SHOP",
     };
-    
+
     // Create shop UI background panel
     commands.spawn((
         Name::new("Shop UI"),
@@ -166,7 +178,7 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
             TextColor(Color::WHITE),
             Transform::from_translation(Vec3::new(0.0, 150.0, 1.0)),
         ));
-        
+
         // Instructions
         parent.spawn((
             Text2d::new("Press E to close"),
@@ -177,7 +189,7 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
             TextColor(Color::srgb(0.7, 0.7, 0.7)),
             Transform::from_translation(Vec3::new(0.0, 120.0, 1.0)),
         ));
-        
+
         // Instructions for purchasing
         parent.spawn((
             Text2d::new("Press 1/2/3 to buy"),
@@ -188,7 +200,7 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
             TextColor(Color::srgb(0.6, 0.6, 0.6)),
             Transform::from_translation(Vec3::new(0.0, 90.0, 1.0)),
         ));
-        
+
         // Shop items based on type
         match shop_state.current_shop {
             Some(ShopType::Weapon) => {
@@ -197,10 +209,10 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
                     ("2. Spread Shot", 750, ShopItem::SpreadShot),
                     ("3. Laser Beam", 1000, ShopItem::LaserBeam),
                 ];
-                
+
                 for (i, (name, cost, item_id)) in weapons.iter().enumerate() {
                     let y_pos = 50.0 - (i as f32 * 60.0);
-                    
+
                     // Item background
                     parent.spawn((
                         Name::new(format!("Shop Item {}", name)),
@@ -218,7 +230,7 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
                             TextColor(Color::WHITE),
                             Transform::from_translation(Vec3::new(-60.0, 5.0, 1.0)),
                         ));
-                        
+
                         // Item cost
                         item_parent.spawn((
                             Text2d::new(format!("${}", cost)),
@@ -237,10 +249,10 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
                     ("1. Speed Boost", 300, ShopItem::SpeedBoost),
                     ("2. Coin Magnet", 600, ShopItem::CoinMagnet),
                 ];
-                
+
                 for (i, (name, cost, item_id)) in upgrades.iter().enumerate() {
                     let y_pos = 50.0 - (i as f32 * 60.0);
-                    
+
                     // Item background
                     parent.spawn((
                         Name::new(format!("Shop Item {}", name)),
@@ -258,7 +270,7 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState) {
                             TextColor(Color::WHITE),
                             Transform::from_translation(Vec3::new(-60.0, 5.0, 1.0)),
                         ));
-                        
+
                         // Item cost
                         item_parent.spawn((
                             Text2d::new(format!("${}", cost)),
@@ -302,7 +314,7 @@ fn handle_shop_purchases(
     if !shop_state.is_near_shop {
         return;
     }
-    
+
     let purchase_key = if keys.just_pressed(KeyCode::Digit1) {
         Some(0)
     } else if keys.just_pressed(KeyCode::Digit2) {
@@ -312,7 +324,7 @@ fn handle_shop_purchases(
     } else {
         None
     };
-    
+
     if let Some(item_index) = purchase_key {
         match shop_state.current_shop {
             Some(ShopType::Weapon) => {
@@ -321,7 +333,7 @@ fn handle_shop_purchases(
                     (ShopItem::SpreadShot, 750),
                     (ShopItem::LaserBeam, 1000),
                 ];
-                
+
                 if let Some((item, cost)) = weapons.get(item_index) {
                     if money.amount >= *cost {
                         let can_buy = match item {
@@ -330,7 +342,7 @@ fn handle_shop_purchases(
                             ShopItem::LaserBeam => !upgrades.laser_beam,
                             _ => false,
                         };
-                        
+
                         if can_buy {
                             money.amount -= cost;
                             match item {
@@ -354,7 +366,7 @@ fn handle_shop_purchases(
                     (ShopItem::SpeedBoost, 300),
                     (ShopItem::CoinMagnet, 600),
                 ];
-                
+
                 if let Some((item, cost)) = upgrades_list.get(item_index) {
                     if money.amount >= *cost {
                         let can_buy = match item {
@@ -362,7 +374,7 @@ fn handle_shop_purchases(
                             ShopItem::CoinMagnet => !upgrades.coin_magnet,
                             _ => false,
                         };
-                        
+
                         if can_buy {
                             money.amount -= cost;
                             match item {
@@ -391,7 +403,7 @@ fn handle_weapon_switching(
     if keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::Tab) {
         // Get available weapons
         let mut available_weapons = vec![WeaponType::Normal];
-        
+
         if upgrades.rapid_fire {
             available_weapons.push(WeaponType::RapidFire);
         }
@@ -401,12 +413,12 @@ fn handle_weapon_switching(
         if upgrades.laser_beam {
             available_weapons.push(WeaponType::LaserBeam);
         }
-        
+
         // Find current weapon index and switch to next
         if let Some(current_index) = available_weapons.iter().position(|&w| w == upgrades.current_weapon) {
             let next_index = (current_index + 1) % available_weapons.len();
             upgrades.current_weapon = available_weapons[next_index];
-            
+
         }
     }
 }

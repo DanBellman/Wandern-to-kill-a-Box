@@ -45,6 +45,11 @@ impl Projectile {
             WeaponType::RapidFire => 75,  // Lower per shot but fires faster
             WeaponType::SpreadShot => 50, // Lower per shot but 3 shots
             WeaponType::LaserBeam => 150, // Higher damage per projectile
+            WeaponType::Uzi => 50 , // Fast firing, lower damage
+            WeaponType::Sniper => 200, // High damage, single shot
+            WeaponType::Bazooka => 400, // High damage
+            WeaponType::Hammer => 300, // High damage melee
+            WeaponType::Sword => 250, // Medium-high damage melee
         }
     }
 }
@@ -151,7 +156,23 @@ fn handle_shooting(
                         },
                         WeaponType::LaserBeam => {
                             // Laser beam - faster, longer projectile
+                            //FIXME still buggy
                             spawn_laser_projectile(&mut commands, player_pos, direction, WeaponType::LaserBeam);
+                        },
+                        WeaponType::Uzi => {
+                            spawn_projectile(&mut commands, player_pos, direction, WeaponType::Uzi);
+                        },
+                        WeaponType::Sniper => {
+                            spawn_projectile(&mut commands, player_pos, direction, WeaponType::Sniper);
+                        },
+                        WeaponType::Bazooka => {
+                            spawn_projectile(&mut commands, player_pos, direction, WeaponType::Bazooka);
+                        },
+                        WeaponType::Hammer => {
+                            spawn_projectile(&mut commands, player_pos, direction, WeaponType::Hammer);
+                        },
+                        WeaponType::Sword => {
+                            spawn_projectile(&mut commands, player_pos, direction, WeaponType::Sword);
                         },
                     }
                 }
@@ -408,6 +429,8 @@ fn handle_laser_beam(
 }
 
 /// Handle continuous laser beam damage to targets
+/// This should be like the melee weapons, the only difference is that
+/// the damage is not one time, but continuous.
 fn handle_laser_continuous_damage(
     laser_query: Query<&Transform, With<LaserBeam>>,
     mut target_query: Query<(&Transform, &mut Target)>,
