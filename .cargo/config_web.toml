@@ -1,0 +1,14 @@
+# Minimal config needed to build for Wasm, using
+# bevy run web --headers="Cross-Origin-Opener-Policy:same-origin" --headers="Cross-Origin-Embedder-Policy:require-corp"
+
+[unstable]
+build-std = ["std", "core", "alloc", "panic_abort"]
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "--cfg",
+    "getrandom_backend=\"wasm_js\"",
+    "--cfg",
+    "web_sys_unstable_apis",
+    "-Ctarget-feature=+bulk-memory,+sign-ext,+nontrapping-fptoint,+atomics",
+]
