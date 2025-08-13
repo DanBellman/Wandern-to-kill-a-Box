@@ -1,5 +1,5 @@
 [package]
-name = "BoxSlayer2d"
+name = "WanderToKillABox"
 authors = ["danielbellamnn <daniel.bellmann@proton.me>"]
 version = "0.1.0"
 edition = "2024"
