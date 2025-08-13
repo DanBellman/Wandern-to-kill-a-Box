@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.16.1", features = ["wayland", "exr", "hdr", "trace", "trace_tracy"] }
+bevy = { version = "0.16.1", features = ["wayland", "exr", "hdr"] }
 avian2d = { version = "0.3", features = ["2d", "simd", "parallel"] }
 rand = "0.8"
 iyes_perf_ui = "0.5"
@@ -100,7 +100,6 @@ opt-level = 3
 debug-assertions = false
 
 [profile.release]
-debug = true
 # Compile the entire crate as one unit.
 # Slows compile times, marginal improvements.
 codegen-units = 1
