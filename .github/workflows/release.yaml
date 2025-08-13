@@ -29,7 +29,7 @@ env:
   build_for_macos: true
 
   # Whether to upload the packages produced by this workflow to a GitHub release.
-  upload_to_github: false
+  upload_to_github: true
 
   ############
   # ADVANCED #
