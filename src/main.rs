@@ -15,8 +15,8 @@ mod screens;
 mod theme;
 
 use bevy::{
-    asset::AssetMetaCheck, 
-    prelude::*, 
+    asset::AssetMetaCheck,
+    prelude::*,
     render::camera::ScalingMode,
     diagnostic::{FrameTimeDiagnosticsPlugin, EntityCountDiagnosticsPlugin, SystemInformationDiagnosticsPlugin},
     core_pipeline::tonemapping::Tonemapping,
@@ -40,6 +40,7 @@ impl Plugin for AppPlugin {
                     // This causes errors and even panics on web build on itch.
                     // See https://github.com/bevyengine/bevy_github_ci_template/issues/48.
                     meta_check: AssetMetaCheck::Never,
+                    mode: bevy::asset::AssetMode::Unprocessed,
                     ..default()
                 })
                 .set(WindowPlugin {
