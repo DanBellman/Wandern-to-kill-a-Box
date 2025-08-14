@@ -61,7 +61,7 @@ impl Plugin for AppPlugin {
         // Add other plugins.
         app.add_plugins((
             asset_tracking::plugin,
-            //audio::plugin,
+            audio::plugin,
             demo::plugin,
             #[cfg(feature = "dev")]
             dev_tools::plugin,
@@ -131,7 +131,7 @@ fn spawn_camera(mut commands: Commands) {
             ..default()
         },
         // Configure tonemapping for HDR
-        Tonemapping::AcesFitted,
+        Tonemapping::None,
     ));
 }
 

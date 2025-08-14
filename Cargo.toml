@@ -4,8 +4,51 @@ authors = ["danielbellamnn <daniel.bellmann@proton.me>"]
 version = "0.1.0"
 edition = "2024"
 
+
 [dependencies]
-bevy = { version = "0.16.1", features = ["wayland", "exr", "hdr"] }
+bevy = { version = "0.16.1", default-features = false, features = [
+    "animation",
+    "bevy_asset",
+    "bevy_audio",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_gilrs",
+    "bevy_gizmos",
+    "bevy_gltf",
+    "bevy_mesh_picking_backend",
+    "bevy_pbr",
+    "bevy_picking",
+    "bevy_render",
+    "bevy_scene",
+    "bevy_sprite",
+    "bevy_sprite_picking_backend",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_picking_backend",
+    "bevy_window",
+    "bevy_winit",
+    "custom_cursor",
+    "default_font",
+    "exr",
+    "hdr",
+    "multi_threaded",
+    "smaa_luts",
+    "sysinfo_plugin",
+    "tonemapping_luts",
+    "jpeg",
+    "tga",
+    "ktx2",
+    "png",
+    "vorbis",
+    "wayland",
+    "configurable_error_handler",
+    # Due to some Bevy bug, we need to enable the UI debug plugin even in non-dev builds,
+    # otherwise we only render the view model and the skybox.
+    "bevy_ui_debug",
+] }
+
+
 avian2d = { version = "0.3", features = ["2d", "simd", "parallel"] }
 rand = "0.8"
 iyes_perf_ui = "0.5"

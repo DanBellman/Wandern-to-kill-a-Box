@@ -12,6 +12,7 @@ pub(super) fn plugin(app: &mut App) {
         update_timer_display,
         update_coin_buffer,
         update_buffer_display,
+        update_buffer_count_text,
     ).in_set(AppSystems::Update).in_set(PausableSystems));
 }
 
@@ -29,6 +30,9 @@ pub struct BufferBar;
 
 #[derive(Component)]
 pub struct BufferBarFill;
+
+#[derive(Component)]
+pub struct BufferCountText;
 
 #[derive(Component)]
 pub struct TimeText;
@@ -57,7 +61,7 @@ impl CoinBuffer {
     }
 
     pub fn drain(&mut self, delta_time: f32) {
-        let drain_rate = 2.0; // Coins per second recovery rate
+        let drain_rate = 10.0;
         self.current = (self.current - drain_rate * delta_time).max(0.0);
     }
 
@@ -122,6 +126,21 @@ fn spawn_hud(mut commands: Commands) {
             Sprite::from_color(Color::srgb(0.0, 0.8, 0.2), Vec2::new(0.0, 18.0)),
             Transform::from_translation(Vec3::new(-60.0, 0.0, 1.0)),
         ));
+
+        // Buffer count text inside the bar
+        parent.spawn((
+            Name::new("Buffer Count Text"),
+            BufferCountText,
+            Text2d::new("0/20"),
+            TextFont {
+                font_size: 14.0,
+                ..default()
+            }
+            .with_font_smoothing(FontSmoothing::None),
+            TextColor(Color::WHITE),
+            TextLayout::new_with_justify(JustifyText::Center),
+            Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
+        ));
     });
 
     commands.spawn((
@@ -138,6 +157,7 @@ fn spawn_hud(mut commands: Commands) {
         Transform::from_translation(Vec3::new(200.0, -250.0, 10.0)),
         StateScoped(Screen::Gameplay),
     ));
+
 }
 
 /// Start the game timer when entering gameplay
@@ -165,7 +185,13 @@ fn update_timer_display(
 fn update_coin_buffer(
     time: Res<Time>,
     mut buffer: ResMut<CoinBuffer>,
+    upgrades: Res<PlayerUpgrades>,
 ) {
+    let new_max = 20.0 + (upgrades.buffer_level as f32 * 10.0);
+    if buffer.max != new_max {
+        buffer.max = new_max;
+    }
+
     // Only drain if there are coins in the buffer
     if buffer.current > 0.0 {
         buffer.drain(time.delta_secs());
@@ -186,6 +212,21 @@ fn update_buffer_display(
             sprite.custom_size = Some(Vec2::new(fill_width, 18.0));
             let offset_x = -60.0 + (fill_width / 2.0);
             transform.translation.x = offset_x;
+        }
+    }
+}
+
+/// Update the buffer count text
+fn update_buffer_count_text(
+    buffer: Res<CoinBuffer>,
+    mut text_query: Query<&mut Text2d, With<BufferCountText>>,
+) {
+    if buffer.is_changed() {
+        let current = buffer.current as u32;
+        let max = buffer.max as u32;
+
+        for mut text in &mut text_query {
+            **text = format!("{}/{}", current, max);
         }
     }
 }

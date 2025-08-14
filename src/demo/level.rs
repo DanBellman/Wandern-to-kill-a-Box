@@ -67,6 +67,8 @@ pub struct LevelAssets {
     weapon_shop: Handle<Image>,
     #[dependency]
     upgrade_shop: Handle<Image>,
+    #[dependency]
+    coin_box: Handle<Image>,
 }
 
 impl FromWorld for LevelAssets {
@@ -76,6 +78,7 @@ impl FromWorld for LevelAssets {
             background: assets.load("myBackground.exr"),
             weapon_shop: assets.load("WeaponShop.exr"),
             upgrade_shop: assets.load("UpgradeShop.exr"),
+            coin_box: assets.load("CoinBox.exr"),
         }
     }
 }
@@ -105,7 +108,7 @@ pub fn spawn_level(
         children![
             background(&level_assets, window),
             player(400.0, &player_assets),
-            yellow_box(),
+            coin_box(&level_assets),
             shop_box_upgrades(&level_assets),
             shop_box_weapons(&level_assets),
             // Invisible ground for coins
@@ -221,13 +224,13 @@ fn background(level_assets: &LevelAssets, window: &Window) -> impl Bundle {
     )
 }
 
-/// Creates a yellow box in the middle of the screen
-fn yellow_box() -> impl Bundle {
+/// Creates a coin box in the middle of the screen
+fn coin_box(level_assets: &LevelAssets) -> impl Bundle {
     (
-        Name::new("Yellow Box"),
+        Name::new("Coin Box"),
         Target::default(), // shootable with damage timers
         Sprite {
-            color: Color::srgb(1.0, 1.0, 0.0),
+            image: level_assets.coin_box.clone(),
             custom_size: Some(Vec2::new(35.0, 35.0)),
             ..default()
         },

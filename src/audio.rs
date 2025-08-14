@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
+    // Initialize AudioSource asset type
+    app.init_asset::<AudioSource>();
+    
     app.register_type::<Music>();
     app.register_type::<SoundEffect>();
 
