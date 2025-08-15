@@ -45,10 +45,9 @@ pub struct UpgradeShop;
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<LevelAssets>();
     app.load_resource::<LevelAssets>();
-    
+
     app.add_plugins(Material2dPlugin::<CoinBoxMaterial>::default());
 
-    // Add systems to handle dynamic scaling
     app.add_systems(
         Update,
         (
@@ -95,7 +94,7 @@ pub fn spawn_level(
     level_assets: Res<LevelAssets>,
     player_assets: Res<PlayerAssets>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    existing_level_query: Query<(), With<Level>>, // Check if level already exists
+    existing_level_query: Query<(), With<Level>>,
     _texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CoinBoxMaterial>>,
@@ -241,16 +240,20 @@ fn coin_box(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<CoinBoxMaterial>>,
 ) -> impl Bundle {
+            let coinbox_width= 70.0;
+            let coinbox_height = 70.0;
     (
         Name::new("Coin Box"),
         Target::default(), // shootable with damage timers
-        Mesh2d(meshes.add(Rectangle::new(70.0, 70.0))),
+        Mesh2d(meshes.add(Rectangle::new(coinbox_width, coinbox_height))),
         MeshMaterial2d(materials.add(CoinBoxMaterial {
             base_color_texture: level_assets.coin_box.clone(),
         })),
         Transform::from_translation(Vec3::new(0.0, -130.0, 0.0)),
         RigidBody::Static,
-        Collider::rectangle(70.0, 70.0),
+        Collider::rectangle(coinbox_width, coinbox_height),
+        Sensor,
+        CollisionEventsEnabled,
     )
 }
 

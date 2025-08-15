@@ -9,6 +9,7 @@ use bevy::{
 use bevy::input::mouse::MouseButton;
 use bevy::window::PrimaryWindow;
 use avian2d::prelude::*;
+use rand::Rng;
 
 
 use crate::{AppSystems, PausableSystems, screens::Screen, demo::player::Player, demo::hud::{ScoreText, CoinBuffer}, demo::movement::ScreenLimit, demo::shop::{PlayerUpgrades, WeaponType}, demo::level::LevelAssets};
@@ -19,7 +20,7 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<Coin>();
     app.register_type::<LaserBeam>();
     app.init_resource::<Money>();
-    
+
     app.add_plugins(Material2dPlugin::<CoinMaterial>::default());
 
     app.add_systems(
@@ -250,12 +251,14 @@ fn spawn_projectile(commands: &mut Commands, start_pos: Vec2, direction: Vec2, w
         LinearVelocity(direction * 800.0),
         GravityScale(0.0), // no gravity on projectiles
         LockedAxes::ROTATION_LOCKED,
+        CollisionEventsEnabled,
     ));
 }
 
-/// Handle collisions between projectiles and targets using spatial query
+/// Handle collisions between projectiles and targets using Avian2D collision events
 fn handle_projectile_collisions(
-    projectile_query: Query<(Entity, &Transform, &Projectile)>,
+    mut collision_events: EventReader<CollisionStarted>,
+    projectile_query: Query<&Projectile>,
     mut target_query: Query<(&Transform, &mut Target)>,
     mut commands: Commands,
     level_assets: Res<LevelAssets>,
@@ -264,23 +267,31 @@ fn handle_projectile_collisions(
     mut coin_materials: ResMut<Assets<CoinMaterial>>,
     time: Res<Time>,
 ) {
-    for (projectile_entity, projectile_transform, projectile) in &projectile_query {
-        for (target_transform, mut target) in &mut target_query {
-            let distance = projectile_transform.translation.distance(target_transform.translation);
+    for CollisionStarted(entity1, entity2) in collision_events.read() {
+        // Check if one entity is a projectile and the other is a target
+        let (projectile_entity, target_entity) = if projectile_query.contains(*entity1) {
+            (*entity1, *entity2)
+        } else if projectile_query.contains(*entity2) {
+            (*entity2, *entity1)
+        } else {
+            continue; // Neither entity is a projectile
+        };
 
-            //FIXME
-            // Check if projectile is close enough to target (collision detection)
-            if distance < 20.0 { // Collision threshold
-                let current_time = time.elapsed_secs();
+        // Get the projectile and target components
+        if let (Ok(projectile), Ok((target_transform, mut target))) = (
+            projectile_query.get(projectile_entity),
+            target_query.get_mut(target_entity)
+        ) {
+            let current_time = time.elapsed_secs();
 
-                // Prevent rapid-fire damage from same weapon type
-                if current_time - target.last_damage_time > 0.1 {
-                    target.last_damage_time = current_time;
-                    commands.entity(projectile_entity).despawn();
-                    let coin_amount = projectile.get_coin_amount();
-                    spawn_weapon_coins(&mut commands, target_transform.translation.truncate(),
+            // Prevent rapid-fire damage from same weapon type
+            if current_time - target.last_damage_time > 0.1 {
+                target.last_damage_time = current_time;
+                commands.entity(projectile_entity).despawn();
+                let coin_amount = projectile.get_coin_amount();
+
+                spawn_weapon_coins(&mut commands, target_transform.translation.truncate(),
                     coin_amount, projectile.weapon_type, &level_assets, &mut meshes, &mut materials, &mut coin_materials);
-                }
             }
         }
     }
@@ -293,7 +304,6 @@ fn spawn_weapon_coins(
     base_value: u32,
     weapon_type: WeaponType,
     level_assets: &Res<LevelAssets>,
-    // For yellow procedural version (add back when testing)
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
     coin_materials: &mut ResMut<Assets<CoinMaterial>>,
@@ -313,11 +323,17 @@ fn spawn_weapon_coins(
     };
 
     for i in 0..coin_count {
-        let angle = (i as f32 / coin_count as f32) * TAU;
-        let distance = 40.0;
+        let mut rng = rand::thread_rng();
+
+        // Completely random angle
+        let angle: f32 = rng.gen_range(0.0..TAU);
+
+        // Random distance from center
+        let distance = rng.gen_range(20.0..80.0);
+
         let random_offset = Vec2::new(
-            angle.cos() * distance + (i as f32 * 10.0 - 15.0),
-            angle.sin() * distance + (i as f32 * 5.0 - 10.0),
+            angle.cos() * distance,
+            angle.sin() * distance,
         );
 
         commands.spawn((
@@ -434,14 +450,11 @@ fn handle_laser_beam(
                 let direction = (world_pos - player_pos).normalize();
 
                 for (mut laser_beam, mut transform) in &mut laser_query {
-                    // Update laser direction
                     laser_beam.direction = direction;
 
-                    // Position laser starting from player, extending in direction
                     let laser_center = player_pos + direction * (laser_beam.length / 2.0);
                     transform.translation = laser_center.extend(6.0);
 
-                    // Rotate laser to point toward cursor
                     let angle = direction.y.atan2(direction.x);
                     transform.rotation = Quat::from_rotation_z(angle);
                 }
@@ -468,12 +481,11 @@ fn handle_laser_continuous_damage(
     }
 
     for (target_transform, mut target) in &mut target_query {
-        // Check if any laser beam is hitting this target
         let mut is_being_hit = false;
 
         for laser_transform in &laser_query {
             let distance = laser_transform.translation.distance(target_transform.translation);
-            if distance < 300.0 { // Laser hit range (half laser length)
+            if distance < 300.0 {
                 is_being_hit = true;
                 break;
             }
@@ -487,7 +499,6 @@ fn handle_laser_continuous_damage(
                 spawn_weapon_coins(&mut commands, target_transform.translation.truncate(), 120, WeaponType::LaserBeam, &level_assets, &mut meshes, &mut materials, &mut coin_materials);
             }
         } else {
-            // Reset laser timer when not being hit
             target.laser_damage_timer = 0.0;
         }
     }
@@ -520,4 +531,5 @@ impl Material2d for CoinMaterial {
         SHADER_ASSET_PATH.into()
     }
 }
+
 
