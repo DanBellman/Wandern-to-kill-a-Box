@@ -3,5 +3,4 @@ bench:
 
 push:
     jj bookmark set main -r @
-    cargo fmt
     jj git push

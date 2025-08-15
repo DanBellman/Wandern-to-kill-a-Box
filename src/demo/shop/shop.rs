@@ -1,6 +1,5 @@
 //! Shop system for buying weapons and upgrades
 
-use crate::demo::shop::shop_ui::spawn_shop_ui;
 use crate::{
     AppSystems, PausableSystems,
     demo::{
@@ -12,6 +11,7 @@ use crate::{
 };
 use avian2d::prelude::*;
 use bevy::prelude::*;
+use crate::demo::shop::shop_ui::spawn_shop_ui;
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<ShopState>();
@@ -40,20 +40,91 @@ pub struct ShopItemButton {
 }
 
 #[derive(Clone, Debug)]
-pub enum ShopItem {
-    RapidFire,
-    Uzi,
-    SpreadShot,
-    LaserBeam,
-    Sniper,
-    Bazooka,
-    Hammer,
-    Sword,
+pub struct ShopItem {
+    pub name: &'static str,
+    pub item_type: ItemType,
+    pub cost: u32,
+}
 
-    //The following perks are upgrades in the Upgrades-Shop:
-    SpeedBoost,
-    CoinMagnet,
-    BufferUpgrade, // You can buy +50 per level. Level max is 10.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ItemType {
+    Weapon(WeaponType),
+    Upgrade(UpgradeType),
+}
+
+impl ShopItem {
+    pub fn from_name(name: &str) -> ShopItem {
+        match name {
+            "Rapid Fire" => ShopItem {
+                name: "Rapid Fire",
+                item_type: ItemType::Weapon(WeaponType::RapidFire),
+                cost: 500,
+            },
+            "Uzi" => ShopItem {
+                name: "Uzi",
+                item_type: ItemType::Weapon(WeaponType::Uzi),
+                cost: 400,
+            },
+            "Spread Shot" => ShopItem {
+                name: "Spread Shot",
+                item_type: ItemType::Weapon(WeaponType::SpreadShot),
+                cost: 750,
+            },
+            "Laser Beam" => ShopItem {
+                name: "Laser Beam",
+                item_type: ItemType::Weapon(WeaponType::LaserBeam),
+                cost: 1000,
+            },
+            "Sniper" => ShopItem {
+                name: "Sniper",
+                item_type: ItemType::Weapon(WeaponType::Sniper),
+                cost: 2000,
+            },
+            "Bazooka" => ShopItem {
+                name: "Bazooka",
+                item_type: ItemType::Weapon(WeaponType::Bazooka),
+                cost: 5000,
+            },
+            "Hammer" => ShopItem {
+                name: "Hammer",
+                item_type: ItemType::Weapon(WeaponType::Hammer),
+                cost: 3000,
+            },
+            "Sword" => ShopItem {
+                name: "Sword",
+                item_type: ItemType::Weapon(WeaponType::Sword),
+                cost: 4000,
+            },
+            "Speed Boost" => ShopItem {
+                name: "Speed Boost",
+                item_type: ItemType::Upgrade(UpgradeType::SpeedBoost),
+                cost: 300,
+            },
+            "Coin Magnet" => ShopItem {
+                name: "Coin Magnet",
+                item_type: ItemType::Upgrade(UpgradeType::CoinMagnet),
+                cost: 600,
+            },
+            "Buffer Upgrade" => ShopItem {
+                name: "Buffer Upgrade",
+                item_type: ItemType::Upgrade(UpgradeType::BufferUpgrade),
+                cost: 400,
+            },
+            _ => ShopItem {
+                name: "Rapid Fire",
+                item_type: ItemType::Weapon(WeaponType::RapidFire),
+                cost: 500,
+            },
+        }
+    }
+
+    pub fn is_weapon(&self) -> bool {
+        matches!(self.item_type, ItemType::Weapon(_))
+    }
+
+    pub fn is_upgrade(&self) -> bool {
+        matches!(self.item_type, ItemType::Upgrade(_))
+    }
 }
 
 #[derive(States, Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
@@ -86,7 +157,7 @@ pub struct PlayerUpgrades {
     //Upgrades
     pub speed_boost: u32,
     pub coin_magnet: bool,
-    pub buffer_level: u32, // New: tracks buffer upgrade level
+    pub buffer_level: u32,
     pub current_weapon: WeaponType,
 }
 
@@ -109,6 +180,45 @@ impl Default for PlayerUpgrades {
     }
 }
 
+impl PlayerUpgrades {
+    pub fn names() -> Vec<&'static str> {
+        vec![
+            "Rapid Fire",
+            "Uzi",
+            "Spread Shot",
+            "Laser Beam",
+            "Sniper",
+            "Bazooka",
+            "Hammer",
+            "Sword",
+            "Speed Boost",
+            "Coin Magnet",
+            "Buffer Upgrade",
+        ]
+    }
+
+    pub fn weapon_names() -> Vec<&'static str> {
+        vec![
+            "Rapid Fire",
+            "Uzi",
+            "Spread Shot",
+            "Laser Beam",
+            "Sniper",
+            "Bazooka",
+            "Hammer",
+            "Sword",
+        ]
+    }
+
+    pub fn upgrade_names() -> Vec<&'static str> {
+        vec![
+            "Speed Boost",
+            "Coin Magnet",
+            "Buffer Upgrade",
+        ]
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 pub enum WeaponType {
     #[default]
@@ -128,6 +238,15 @@ pub enum WeaponType {
     //GiantSword
     //UltraHammer
     //UltraSniper //these ultra types of weapons are almost funny big
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+pub enum UpgradeType {
+    #[default]
+    Normal,
+    SpeedBoost,
+    CoinMagnet,
+    BufferUpgrade,
 }
 
 /// Detect when player is near a shop
@@ -206,6 +325,22 @@ fn handle_shop_input(
     }
 }
 
+pub fn buy_item(
+    _: Trigger<Pointer<Click>>,
+    current_state: Res<State<Shop>>,
+    mut next_shop: ResMut<NextState<Shop>>
+) {
+    let _item = match current_state.get() {
+        Shop::Weapon => ShopItem::from_name("Rapid Fire"),
+        Shop::Upgrade => ShopItem::from_name("Speed Boost"),
+        _ => return,
+    };
+
+    next_shop.set(Shop::Weapon);
+}
+
+
+
 /// Close shop UI when leaving shop area
 fn update_shop_ui(
     shop_state: Res<ShopState>,
@@ -253,50 +388,50 @@ fn handle_shop_purchases(
         match shop_state.current_shop {
             Some(Shop::Weapon) => {
                 let weapons = [
-                    (ShopItem::RapidFire, 500),
-                    (ShopItem::SpreadShot, 750),
-                    (ShopItem::LaserBeam, 1000),
-                    (ShopItem::Sniper, 2000),
-                    (ShopItem::Hammer, 3000),
-                    (ShopItem::Sword, 4000),
-                    (ShopItem::Bazooka, 5000),
+                    (ShopItem::from_name("Rapid Fire"), 500),
+                    (ShopItem::from_name("Spread Shot"), 750),
+                    (ShopItem::from_name("Laser Beam"), 1000),
+                    (ShopItem::from_name("Sniper"), 2000),
+                    (ShopItem::from_name("Hammer"), 3000),
+                    (ShopItem::from_name("Sword"), 4000),
+                    (ShopItem::from_name("Bazooka"), 5000),
                 ];
 
                 if let Some((item, cost)) = weapons.get(item_index) {
                     if money.amount >= *cost {
-                        let can_buy = match item {
-                            ShopItem::RapidFire => !upgrades.rapid_fire,
-                            ShopItem::SpreadShot => !upgrades.spread_shot,
-                            ShopItem::LaserBeam => !upgrades.laser_beam,
-                            ShopItem::Sniper => !upgrades.sniper,
-                            ShopItem::Hammer => !upgrades.hammer,
-                            ShopItem::Sword => !upgrades.sword,
-                            ShopItem::Bazooka => !upgrades.bazooka,
+                        let can_buy = match &item.item_type {
+                            ItemType::Weapon(WeaponType::RapidFire) => !upgrades.rapid_fire,
+                            ItemType::Weapon(WeaponType::SpreadShot) => !upgrades.spread_shot,
+                            ItemType::Weapon(WeaponType::LaserBeam) => !upgrades.laser_beam,
+                            ItemType::Weapon(WeaponType::Sniper) => !upgrades.sniper,
+                            ItemType::Weapon(WeaponType::Hammer) => !upgrades.hammer,
+                            ItemType::Weapon(WeaponType::Sword) => !upgrades.sword,
+                            ItemType::Weapon(WeaponType::Bazooka) => !upgrades.bazooka,
                             _ => false,
                         };
 
                         if can_buy {
                             money.amount -= cost;
-                            match item {
-                                ShopItem::RapidFire => {
+                            match &item.item_type {
+                                ItemType::Weapon(WeaponType::RapidFire) => {
                                     upgrades.rapid_fire = true;
                                 }
-                                ShopItem::SpreadShot => {
+                                ItemType::Weapon(WeaponType::SpreadShot) => {
                                     upgrades.spread_shot = true;
                                 }
-                                ShopItem::LaserBeam => {
+                                ItemType::Weapon(WeaponType::LaserBeam) => {
                                     upgrades.laser_beam = true;
                                 }
-                                ShopItem::Sniper => {
+                                ItemType::Weapon(WeaponType::Sniper) => {
                                     upgrades.sniper = true;
                                 }
-                                ShopItem::Hammer => {
+                                ItemType::Weapon(WeaponType::Hammer) => {
                                     upgrades.hammer = true;
                                 }
-                                ShopItem::Sword => {
+                                ItemType::Weapon(WeaponType::Sword) => {
                                     upgrades.sword = true;
                                 }
-                                ShopItem::Bazooka => {
+                                ItemType::Weapon(WeaponType::Bazooka) => {
                                     upgrades.bazooka = true;
                                 }
                                 _ => {}
@@ -307,36 +442,36 @@ fn handle_shop_purchases(
             }
             Some(Shop::Upgrade) => {
                 let upgrades_list = [
-                    (ShopItem::SpeedBoost, 300),
-                    (ShopItem::CoinMagnet, 600),
-                    (ShopItem::BufferUpgrade, 400),
+                    (ShopItem::from_name("Speed Boost"), 300),
+                    (ShopItem::from_name("Coin Magnet"), 600),
+                    (ShopItem::from_name("Buffer Upgrade"), 400),
                 ];
 
                 if let Some((item, cost)) = upgrades_list.get(item_index) {
                     // Calculate dynamic cost for upgradeable items
-                    let actual_cost = match item {
-                        ShopItem::BufferUpgrade => *cost + (upgrades.buffer_level * 200), // Cost increases with each level
+                    let actual_cost = match &item.item_type {
+                        ItemType::Upgrade(UpgradeType::BufferUpgrade) => *cost + (upgrades.buffer_level * 200), // Cost increases with each level
                         _ => *cost,
                     };
 
                     if money.amount >= actual_cost {
-                        let can_buy = match item {
-                            ShopItem::SpeedBoost => upgrades.speed_boost < 3, // Max 3 levels
-                            ShopItem::CoinMagnet => !upgrades.coin_magnet,
-                            ShopItem::BufferUpgrade => upgrades.buffer_level < 10, // Max 10 levels
+                        let can_buy = match &item.item_type {
+                            ItemType::Upgrade(UpgradeType::SpeedBoost) => upgrades.speed_boost < 3, // Max 3 levels
+                            ItemType::Upgrade(UpgradeType::CoinMagnet) => !upgrades.coin_magnet,
+                            ItemType::Upgrade(UpgradeType::BufferUpgrade) => upgrades.buffer_level < 10, // Max 10 levels
                             _ => false,
                         };
 
                         if can_buy {
                             money.amount -= actual_cost;
-                            match item {
-                                ShopItem::SpeedBoost => {
+                            match &item.item_type {
+                                ItemType::Upgrade(UpgradeType::SpeedBoost) => {
                                     upgrades.speed_boost += 1;
                                 }
-                                ShopItem::CoinMagnet => {
+                                ItemType::Upgrade(UpgradeType::CoinMagnet) => {
                                     upgrades.coin_magnet = true;
                                 }
-                                ShopItem::BufferUpgrade => {
+                                ItemType::Upgrade(UpgradeType::BufferUpgrade) => {
                                     upgrades.buffer_level += 1;
                                 }
                                 _ => {}
