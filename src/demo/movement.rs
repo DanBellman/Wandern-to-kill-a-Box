@@ -16,7 +16,7 @@
 use avian2d::prelude::*;
 use bevy::{prelude::*, window::PrimaryWindow};
 
-use crate::{AppSystems, PausableSystems, demo::shop::PlayerUpgrades};
+use crate::{AppSystems, PausableSystems, demo::shop::shop::PlayerUpgrades};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<MovementController>();

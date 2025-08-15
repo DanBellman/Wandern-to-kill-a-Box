@@ -1,6 +1,6 @@
 //! Simple HUD system
 
-use crate::{AppSystems, PausableSystems, demo::shop::PlayerUpgrades, screens::Screen};
+use crate::{AppSystems, PausableSystems, demo::shop::shop::PlayerUpgrades, screens::Screen};
 use bevy::prelude::*;
 use bevy::text::FontSmoothing;
 

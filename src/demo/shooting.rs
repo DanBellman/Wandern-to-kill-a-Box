@@ -17,7 +17,7 @@ use crate::{
     demo::level::LevelAssets,
     demo::movement::ScreenLimit,
     demo::player::Player,
-    demo::shop::{PlayerUpgrades, WeaponType},
+    demo::shop::shop::{PlayerUpgrades, WeaponType},
     screens::Screen,
 };
 
