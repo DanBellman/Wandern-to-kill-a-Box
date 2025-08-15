@@ -73,6 +73,7 @@ pub struct LevelAssets {
     coin_box: Handle<Image>,
     #[dependency]
     pub coin: Handle<Image>,
+    pub ground_level: f32,
 }
 
 impl FromWorld for LevelAssets {
@@ -84,6 +85,7 @@ impl FromWorld for LevelAssets {
             upgrade_shop: assets.load("UpgradeShop.exr"),
             coin_box: assets.load("CoinBox.exr"),
             coin: assets.load("Coin.exr"),
+            ground_level: -250.0,
         }
     }
 }
@@ -121,7 +123,7 @@ pub fn spawn_level(
             shop_box_upgrades(&level_assets),
             shop_box_weapons(&level_assets),
             // Invisible ground for both player and coins
-            invisible_ground(),
+            invisible_ground(&level_assets),
             // Invisible walls
             left_wall(),
             right_wall(),
@@ -191,8 +193,6 @@ fn update_shop_sprite_size(
     }
 }
 
-
-/// Creates the left invisible wall
 fn left_wall() -> impl Bundle {
     (
         Name::new("Left Wall"),
@@ -202,7 +202,6 @@ fn left_wall() -> impl Bundle {
     )
 }
 
-/// Creates the right invisible wall
 fn right_wall() -> impl Bundle {
     (
         Name::new("Right Wall"),
@@ -221,10 +220,9 @@ fn background(level_assets: &LevelAssets, window: &Window) -> impl Bundle {
     let world_width = world_height * window_aspect;
 
     // Scale the background to fill the entire visible world space
-    // This ensures maximum pixel utilization of your window size
     (
         Name::new("HDR Background"),
-        Background, // Add component to identify this as the background
+        Background,
         Sprite {
             image: level_assets.background.clone(),
             custom_size: Some(Vec2::new(world_width, world_height)),
@@ -258,11 +256,11 @@ fn coin_box(
 }
 
 /// Creates invisible ground for both player and coins
-fn invisible_ground() -> impl Bundle {
+fn invisible_ground(level_assets: &LevelAssets) -> impl Bundle {
     (
         Name::new("Invisible Ground"),
         // No sprite - completely invisible
-        Transform::from_translation(Vec3::new(0.0, -250.0, 0.0)),
+        Transform::from_translation(Vec3::new(0.0, level_assets.ground_level, 0.0)),
         RigidBody::Static,
         Collider::rectangle(2000.0, 20.0),
         CollisionLayers::new(LayerMask(0b0001), LayerMask(0b0011)), // On layer 0, collides with layer 1 (coins) and layer 2 (player)
@@ -279,7 +277,7 @@ fn shop_box_upgrades(level_assets: &LevelAssets) -> impl Bundle {
             custom_size: Some(Vec2::new(60.0, 60.0)),
             ..default()
         },
-        Transform::from_translation(Vec3::new(-190.0, -227.0, 0.0)),
+        Transform::from_translation(Vec3::new(-190.0, level_assets.ground_level, 0.0)),
         RigidBody::Static,
         Collider::rectangle(50.0, 50.0), // Shop interaction area
         Sensor,
@@ -297,7 +295,7 @@ fn shop_box_weapons(level_assets: &LevelAssets) -> impl Bundle {
             custom_size: Some(Vec2::new(60.0, 60.0)),
             ..default()
         },
-        Transform::from_translation(Vec3::new(-300.0, -227.0, 0.0)),
+        Transform::from_translation(Vec3::new(-300.0, level_assets.ground_level, 0.0)),
         RigidBody::Static,
         Collider::rectangle(50.0, 50.0),
         Sensor,
