@@ -187,7 +187,7 @@ fn update_coin_buffer(
     mut buffer: ResMut<CoinBuffer>,
     upgrades: Res<PlayerUpgrades>,
 ) {
-    let new_max = 20.0 + (upgrades.buffer_level as f32 * 10.0);
+    let new_max = 20.0 + (upgrades.buffer_level as f32 * 50.0);
     if buffer.max != new_max {
         buffer.max = new_max;
     }

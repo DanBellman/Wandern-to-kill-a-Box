@@ -48,7 +48,7 @@ pub fn player(
             custom_size: Some(Vec2::new(player_width, player_height)),
             ..default()
         },
-        Transform::from_translation(Vec3::new(0.0, -227.0, 0.0)), //FIXME: use variable instead of hardcoded value
+        Transform::from_translation(Vec3::new(0.0, -240.0, 0.0)), // Same ground level as coins
         MovementController {
             max_speed,
             ..default()

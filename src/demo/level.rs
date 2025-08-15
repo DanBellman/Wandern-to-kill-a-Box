@@ -2,13 +2,14 @@
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use bevy::sprite::Material2dPlugin;
 use avian2d::prelude::*;
 
 use crate::{
     asset_tracking::LoadResource,
     demo::{
         player::{PlayerAssets, player},
-        shooting::Target,
+        shooting::{Target, CoinBoxMaterial},
     },
     screens::Screen,
     AppSystems, PausableSystems,
@@ -44,6 +45,8 @@ pub struct UpgradeShop;
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<LevelAssets>();
     app.load_resource::<LevelAssets>();
+    
+    app.add_plugins(Material2dPlugin::<CoinBoxMaterial>::default());
 
     // Add systems to handle dynamic scaling
     app.add_systems(
@@ -69,6 +72,8 @@ pub struct LevelAssets {
     upgrade_shop: Handle<Image>,
     #[dependency]
     coin_box: Handle<Image>,
+    #[dependency]
+    pub coin: Handle<Image>,
 }
 
 impl FromWorld for LevelAssets {
@@ -79,6 +84,7 @@ impl FromWorld for LevelAssets {
             weapon_shop: assets.load("WeaponShop.exr"),
             upgrade_shop: assets.load("UpgradeShop.exr"),
             coin_box: assets.load("CoinBox.exr"),
+            coin: assets.load("Coin.exr"),
         }
     }
 }
@@ -91,13 +97,17 @@ pub fn spawn_level(
     window_query: Query<&Window, With<PrimaryWindow>>,
     existing_level_query: Query<(), With<Level>>, // Check if level already exists
     _texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<CoinBoxMaterial>>,
 ) {
     // Don't spawn level if it already exists
     if !existing_level_query.is_empty() {
         return;
     }
 
-    let window = window_query.get_single().expect("Primary window not found");
+    let Ok(window) = window_query.single() else {
+        return; // Skip if window not ready yet
+    };
 
     commands.spawn((
         Name::new("Level"),
@@ -108,11 +118,10 @@ pub fn spawn_level(
         children![
             background(&level_assets, window),
             player(400.0, &player_assets),
-            coin_box(&level_assets),
+            coin_box(&level_assets, &mut meshes, &mut materials),
             shop_box_upgrades(&level_assets),
             shop_box_weapons(&level_assets),
-            // Invisible ground for coins
-            //FIXME: Player and coins are not on the same ground.
+            // Invisible ground for both player and coins
             invisible_ground(),
             // Invisible walls
             left_wall(),
@@ -131,7 +140,9 @@ fn position_invisible_walls(
     mut right_wall_query: Query<&mut Transform, (With<RightWall>, Added<RightWall>, Without<LeftWall>)>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    let window = window_query.get_single().expect("Primary window not found");
+    let Ok(window) = window_query.single() else {
+        return; // Skip if window not ready yet
+    };
     let window_aspect = window.width() / window.height();
         let viewport_height = 600.0;
         let viewport_width = viewport_height * window_aspect;
@@ -224,31 +235,34 @@ fn background(level_assets: &LevelAssets, window: &Window) -> impl Bundle {
     )
 }
 
-/// Creates a coin box in the middle of the screen
-fn coin_box(level_assets: &LevelAssets) -> impl Bundle {
+/// Creates a coin box in the middle of the screen with shimmer effect
+fn coin_box(
+    level_assets: &LevelAssets,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<CoinBoxMaterial>>,
+) -> impl Bundle {
     (
         Name::new("Coin Box"),
         Target::default(), // shootable with damage timers
-        Sprite {
-            image: level_assets.coin_box.clone(),
-            custom_size: Some(Vec2::new(35.0, 35.0)),
-            ..default()
-        },
+        Mesh2d(meshes.add(Rectangle::new(70.0, 70.0))),
+        MeshMaterial2d(materials.add(CoinBoxMaterial {
+            base_color_texture: level_assets.coin_box.clone(),
+        })),
         Transform::from_translation(Vec3::new(0.0, -130.0, 0.0)),
         RigidBody::Static,
-        Collider::rectangle(35.0, 35.0),
+        Collider::rectangle(70.0, 70.0),
     )
 }
 
-/// Creates invisible ground for coins to land on
+/// Creates invisible ground for both player and coins
 fn invisible_ground() -> impl Bundle {
     (
         Name::new("Invisible Ground"),
         // No sprite - completely invisible
-        Transform::from_translation(Vec3::new(0.0, -270.0, 0.0)),
+        Transform::from_translation(Vec3::new(0.0, -250.0, 0.0)),
         RigidBody::Static,
         Collider::rectangle(2000.0, 20.0),
-        CollisionLayers::new(LayerMask(0b0001), LayerMask(0b0010)), // On layer 0, collides with layer 1 (coins)
+        CollisionLayers::new(LayerMask(0b0001), LayerMask(0b0011)), // On layer 0, collides with layer 1 (coins) and layer 2 (player)
     )
 }
 

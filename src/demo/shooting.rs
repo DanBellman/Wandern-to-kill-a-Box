@@ -1,17 +1,26 @@
 //! Shooting system for player projectiles
 
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    reflect::TypePath,
+    render::render_resource::{AsBindGroup, ShaderRef},
+    sprite::{Material2d, Material2dPlugin},
+};
 use bevy::input::mouse::MouseButton;
 use bevy::window::PrimaryWindow;
 use avian2d::prelude::*;
 
-use crate::{AppSystems, PausableSystems, demo::player::Player, demo::hud::{ScoreText, CoinBuffer}, demo::movement::ScreenLimit, demo::shop::{PlayerUpgrades, WeaponType}};
+
+use crate::{AppSystems, PausableSystems, screens::Screen, demo::player::Player, demo::hud::{ScoreText, CoinBuffer}, demo::movement::ScreenLimit, demo::shop::{PlayerUpgrades, WeaponType}, demo::level::LevelAssets};
+
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Projectile>();
     app.register_type::<Coin>();
     app.register_type::<LaserBeam>();
     app.init_resource::<Money>();
+    
+    app.add_plugins(Material2dPlugin::<CoinMaterial>::default());
 
     app.add_systems(
         Update,
@@ -24,7 +33,8 @@ pub(super) fn plugin(app: &mut App) {
             update_money_display,
         )
             .in_set(AppSystems::Update)
-            .in_set(PausableSystems),
+            .in_set(PausableSystems)
+            .run_if(in_state(Screen::Gameplay)),
     );
 }
 
@@ -248,8 +258,10 @@ fn handle_projectile_collisions(
     projectile_query: Query<(Entity, &Transform, &Projectile)>,
     mut target_query: Query<(&Transform, &mut Target)>,
     mut commands: Commands,
+    level_assets: Res<LevelAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut coin_materials: ResMut<Assets<CoinMaterial>>,
     time: Res<Time>,
 ) {
     for (projectile_entity, projectile_transform, projectile) in &projectile_query {
@@ -267,7 +279,7 @@ fn handle_projectile_collisions(
                     commands.entity(projectile_entity).despawn();
                     let coin_amount = projectile.get_coin_amount();
                     spawn_weapon_coins(&mut commands, target_transform.translation.truncate(),
-                    coin_amount, projectile.weapon_type, &mut meshes, &mut materials);
+                    coin_amount, projectile.weapon_type, &level_assets, &mut meshes, &mut materials, &mut coin_materials);
                 }
             }
         }
@@ -280,8 +292,11 @@ fn spawn_weapon_coins(
     position: Vec2,
     base_value: u32,
     weapon_type: WeaponType,
+    level_assets: &Res<LevelAssets>,
+    // For yellow procedural version (add back when testing)
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
+    coin_materials: &mut ResMut<Assets<CoinMaterial>>,
 ) {
     use std::f32::consts::TAU;
 
@@ -301,24 +316,32 @@ fn spawn_weapon_coins(
         let angle = (i as f32 / coin_count as f32) * TAU;
         let distance = 40.0;
         let random_offset = Vec2::new(
-            angle.cos() * distance + (i as f32 * 10.0 - 15.0), // Some variation
+            angle.cos() * distance + (i as f32 * 10.0 - 15.0),
             angle.sin() * distance + (i as f32 * 5.0 - 10.0),
         );
 
         commands.spawn((
             Name::new("Coin"),
             Coin { value: base_value / coin_count },
+            // Shimmer shader version
             Mesh2d(meshes.add(Circle::new(8.0))),
-            MeshMaterial2d(materials.add(Color::srgb(1.0, 0.8, 0.0))),
+            MeshMaterial2d(coin_materials.add(CoinMaterial {
+                base_color_texture: level_assets.coin.clone(),
+            })),
+            // Yellow procedural version (uncomment to test performance)
+            // This works: start
+            // Mesh2d(meshes.add(Circle::new(8.0))),
+            // MeshMaterial2d(materials.add(Color::srgb(1.0, 0.8, 0.0))),
+            // This works: end
             Transform::from_translation((position + random_offset).extend(1.0)),
             RigidBody::Dynamic,
             Collider::circle(8.0),
             CollisionLayers::new(LayerMask(0b0010), LayerMask(0b0001)), // On layer 1, collides with layer 0 (ground)
             CollisionEventsEnabled,
-            LinearVelocity(random_offset.normalize() * 100.0), // Initial spread velocity
-            AngularVelocity(2.0 + i as f32), // Rotation based on coin number
-            GravityScale(10.0),
-            AngularDamping(1.0),
+            LinearVelocity::ZERO, // Like player - no velocity
+            GravityScale(10.0),    // Like player - no gravity
+            AngularVelocity(2.0 + i as f32),
+            LockedAxes::ROTATION_LOCKED, // Like player - no rotation
             ScreenLimit,
         ));
     }
@@ -434,8 +457,10 @@ fn handle_laser_continuous_damage(
     laser_query: Query<&Transform, With<LaserBeam>>,
     mut target_query: Query<(&Transform, &mut Target)>,
     mut commands: Commands,
+    level_assets: Res<LevelAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut coin_materials: ResMut<Assets<CoinMaterial>>,
     time: Res<Time>,
 ) {
     if laser_query.is_empty() {
@@ -459,12 +484,40 @@ fn handle_laser_continuous_damage(
             if target.laser_damage_timer >= 0.3 {
                 target.laser_damage_timer = 0.0;
 
-                spawn_weapon_coins(&mut commands, target_transform.translation.truncate(), 120, WeaponType::LaserBeam, &mut meshes, &mut materials);
+                spawn_weapon_coins(&mut commands, target_transform.translation.truncate(), 120, WeaponType::LaserBeam, &level_assets, &mut meshes, &mut materials, &mut coin_materials);
             }
         } else {
             // Reset laser timer when not being hit
             target.laser_damage_timer = 0.0;
         }
+    }
+}
+
+const SHADER_ASSET_PATH: &str = "shaders/animate_shader.wgsl";
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct CoinBoxMaterial {
+    #[texture(1)]
+    #[sampler(2)]
+    pub base_color_texture: Handle<Image>,
+}
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct CoinMaterial {
+    #[texture(1)]
+    #[sampler(2)]
+    pub base_color_texture: Handle<Image>,
+}
+
+impl Material2d for CoinBoxMaterial {
+    fn fragment_shader() -> ShaderRef {
+        SHADER_ASSET_PATH.into()
+    }
+}
+
+impl Material2d for CoinMaterial {
+    fn fragment_shader() -> ShaderRef {
+        SHADER_ASSET_PATH.into()
     }
 }
 

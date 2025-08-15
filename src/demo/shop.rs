@@ -35,10 +35,11 @@ pub enum ShopItem {
     Bazooka,
     Hammer,
     Sword,
-    //Upgrades
+
+    //The following perks are upgrades in the Upgrades-Shop:
     SpeedBoost,
     CoinMagnet,
-    BufferUpgrade,
+    BufferUpgrade, // You can buy +50 per level. Level max is 10.
 }
 
 #[derive(Clone, Debug)]
@@ -103,8 +104,6 @@ fn detect_shop_proximity(
     mut shop_state: ResMut<ShopState>,
 ) {
     let player_entity = player_query.single().ok();
-
-
 
     // Check for shop entry
     for CollisionStarted(entity1, entity2) in collision_events.read() {
@@ -272,7 +271,7 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState, upgrades: &Pla
                 let upgrade_items = [
                     ("1. Speed Boost", 300, ShopItem::SpeedBoost, upgrades.speed_boost, 3),
                     ("2. Coin Magnet", 600, ShopItem::CoinMagnet, if upgrades.coin_magnet { 1 } else { 0 }, 1),
-                    ("3. Buffer Upgrade", 400, ShopItem::BufferUpgrade, upgrades.buffer_level, 5),
+                    ("3. Buffer Upgrade", 400, ShopItem::BufferUpgrade, upgrades.buffer_level, 10),
                 ];
 
                 for (i, (name, base_cost, item_id, current_level, max_level)) in upgrade_items.iter().enumerate() {
@@ -334,8 +333,8 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState, upgrades: &Pla
                         // Effect description
                         let effect_text = match item_id {
                             ShopItem::BufferUpgrade => {
-                                let current_capacity = 20 + (current_level * 10);
-                                let next_capacity = 20 + ((current_level + 1) * 10);
+                                let current_capacity = 20 + (current_level * 50);
+                                let next_capacity = 20 + ((current_level + 1) * 50);
                                 if is_maxed {
                                     format!("Buffer: {} coins", current_capacity)
                                 } else {
@@ -482,7 +481,7 @@ fn handle_shop_purchases(
                         let can_buy = match item {
                             ShopItem::SpeedBoost => upgrades.speed_boost < 3, // Max 3 levels
                             ShopItem::CoinMagnet => !upgrades.coin_magnet,
-                            ShopItem::BufferUpgrade => upgrades.buffer_level < 5, // Max 5 levels
+                            ShopItem::BufferUpgrade => upgrades.buffer_level < 10, // Max 10 levels
                             _ => false,
                         };
 

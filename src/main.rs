@@ -179,3 +179,4 @@ fn toggle_perf_ui(
         }
     }
 }
+
