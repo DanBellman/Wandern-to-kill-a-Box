@@ -14,14 +14,17 @@ mod menus;
 mod screens;
 mod theme;
 
+use avian2d::prelude::*;
 use bevy::{
     asset::AssetMetaCheck,
+    core_pipeline::tonemapping::Tonemapping,
+    diagnostic::{
+        EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin,
+        SystemInformationDiagnosticsPlugin,
+    },
     prelude::*,
     render::camera::ScalingMode,
-    diagnostic::{FrameTimeDiagnosticsPlugin, EntityCountDiagnosticsPlugin, SystemInformationDiagnosticsPlugin},
-    core_pipeline::tonemapping::Tonemapping,
 };
-use avian2d::prelude::*;
 use iyes_perf_ui::prelude::*;
 
 fn main() -> AppExit {
@@ -53,7 +56,10 @@ impl Plugin for AppPlugin {
                     ..default()
                 }),
             PhysicsPlugins::default(),
-            FrameTimeDiagnosticsPlugin { max_history_length: 1, smoothing_factor: 0.0 },
+            FrameTimeDiagnosticsPlugin {
+                max_history_length: 1,
+                smoothing_factor: 0.0,
+            },
             EntityCountDiagnosticsPlugin::default(),
             SystemInformationDiagnosticsPlugin::default(),
         ));
@@ -122,7 +128,9 @@ fn spawn_camera(mut commands: Commands) {
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
             // Fixed scale - window resize crops/letterboxes instead of showing more world
-            scaling_mode: ScalingMode::FixedVertical { viewport_height: 600.0 },
+            scaling_mode: ScalingMode::FixedVertical {
+                viewport_height: 600.0,
+            },
             ..OrthographicProjection::default_2d()
         }),
         // Enable HDR rendering
@@ -134,7 +142,6 @@ fn spawn_camera(mut commands: Commands) {
         Tonemapping::None,
     ));
 }
-
 
 // bitflags! {
 //     struct RenderLayer: u32 {
@@ -179,4 +186,3 @@ fn toggle_perf_ui(
         }
     }
 }
-

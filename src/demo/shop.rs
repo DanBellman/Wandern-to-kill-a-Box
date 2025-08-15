@@ -1,19 +1,32 @@
 //! Shop system for buying weapons and upgrades
 
-use bevy::prelude::*;
+use crate::{
+    AppSystems, PausableSystems,
+    demo::{
+        level::{UpgradeShop, WeaponShop},
+        player::Player,
+        shooting::Money,
+    },
+    screens::Screen,
+};
 use avian2d::prelude::*;
-use crate::{AppSystems, PausableSystems, screens::Screen, demo::{player::Player, level::{WeaponShop, UpgradeShop}, shooting::Money}};
+use bevy::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<ShopState>();
     app.init_resource::<PlayerUpgrades>();
-    app.add_systems(Update, (
-        detect_shop_proximity,
-        handle_shop_input,
-        update_shop_ui,
-        handle_shop_purchases,
-        handle_weapon_switching,
-    ).in_set(AppSystems::Update).in_set(PausableSystems));
+    app.add_systems(
+        Update,
+        (
+            detect_shop_proximity,
+            handle_shop_input,
+            update_shop_ui,
+            handle_shop_purchases,
+            handle_weapon_switching,
+        )
+            .in_set(AppSystems::Update)
+            .in_set(PausableSystems),
+    );
 }
 
 #[derive(Component)]
@@ -54,7 +67,7 @@ pub struct ShopState {
     pub is_near_shop: bool,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct PlayerUpgrades {
     // Weapons
     pub rapid_fire: bool,
@@ -69,8 +82,27 @@ pub struct PlayerUpgrades {
     //Upgrades
     pub speed_boost: u32,
     pub coin_magnet: bool,
-    pub buffer_level: u32,  // New: tracks buffer upgrade level
+    pub buffer_level: u32, // New: tracks buffer upgrade level
     pub current_weapon: WeaponType,
+}
+
+impl Default for PlayerUpgrades {
+    fn default() -> Self {
+        Self {
+            rapid_fire: false,
+            uzi: false,
+            spread_shot: false,
+            laser_beam: false,
+            sniper: false,
+            bazooka: false,
+            hammer: false,
+            sword: false,
+            speed_boost: 0,
+            coin_magnet: false,
+            buffer_level: 1,
+            current_weapon: WeaponType::default(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
@@ -179,190 +211,241 @@ fn spawn_shop_ui(commands: &mut Commands, shop_state: &ShopState, upgrades: &Pla
     };
 
     // Create shop UI background panel
-    commands.spawn((
-        Name::new("Shop UI"),
-        ShopUI,
-        Sprite::from_color(Color::srgba(0.1, 0.1, 0.1, 0.9), Vec2::new(300.0, 450.0)),
-        Transform::from_translation(Vec3::new(-200.0, 0.0, 100.0)), // Left side of screen
-        StateScoped(Screen::Gameplay),
-    )).with_children(|parent| {
-        // Shop title
-        parent.spawn((
-            Text2d::new(shop_title),
-            TextFont {
-                font_size: 24.0,
-                ..default()
-            },
-            TextColor(Color::WHITE),
-            Transform::from_translation(Vec3::new(0.0, 175.0, 1.0)),
-        ));
+    commands
+        .spawn((
+            Name::new("Shop UI"),
+            ShopUI,
+            Sprite::from_color(Color::srgba(0.1, 0.1, 0.1, 0.9), Vec2::new(300.0, 450.0)),
+            Transform::from_translation(Vec3::new(-200.0, 0.0, 100.0)), // Left side of screen
+            StateScoped(Screen::Gameplay),
+        ))
+        .with_children(|parent| {
+            // Shop title
+            parent.spawn((
+                Text2d::new(shop_title),
+                TextFont {
+                    font_size: 24.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                Transform::from_translation(Vec3::new(0.0, 175.0, 1.0)),
+            ));
 
-        // Instructions
-        parent.spawn((
-            Text2d::new("Press E to close"),
-            TextFont {
-                font_size: 16.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.7, 0.7, 0.7)),
-            Transform::from_translation(Vec3::new(0.0, 145.0, 1.0)),
-        ));
+            // Instructions
+            parent.spawn((
+                Text2d::new("Press E to close"),
+                TextFont {
+                    font_size: 16.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                Transform::from_translation(Vec3::new(0.0, 145.0, 1.0)),
+            ));
 
-        // Instructions for purchasing
-        parent.spawn((
-            Text2d::new("Press 1/2/3 to buy"),
-            TextFont {
-                font_size: 14.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.6, 0.6, 0.6)),
-            Transform::from_translation(Vec3::new(0.0, 115.0, 1.0)),
-        ));
+            // Instructions for purchasing
+            parent.spawn((
+                Text2d::new("Press 1/2/3 to buy"),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                Transform::from_translation(Vec3::new(0.0, 115.0, 1.0)),
+            ));
 
-        // Shop items based on type
-        match shop_state.current_shop {
-            Some(ShopType::Weapon) => {
-                let weapons = [
-                    ("1. Rapid Fire", 500, ShopItem::RapidFire),
-                    ("2. Spread Shot", 750, ShopItem::SpreadShot),
-                    ("3. Laser Beam", 1000, ShopItem::LaserBeam),
-                    ("4. Sniper", 2000, ShopItem::Sniper),
-                    ("5. Hammer", 3000, ShopItem::Hammer),
-                    ("6. Sword", 4000, ShopItem::Sword),
-                    ("7. Bazooka", 5000, ShopItem::Bazooka),
-                    //...
-                ];
+            // Shop items based on type
+            match shop_state.current_shop {
+                Some(ShopType::Weapon) => {
+                    let weapons = [
+                        ("1. Rapid Fire", 500, ShopItem::RapidFire),
+                        ("2. Spread Shot", 750, ShopItem::SpreadShot),
+                        ("3. Laser Beam", 1000, ShopItem::LaserBeam),
+                        ("4. Sniper", 2000, ShopItem::Sniper),
+                        ("5. Hammer", 3000, ShopItem::Hammer),
+                        ("6. Sword", 4000, ShopItem::Sword),
+                        ("7. Bazooka", 5000, ShopItem::Bazooka),
+                        //...
+                    ];
 
-                for (i, (name, cost, item_id)) in weapons.iter().enumerate() {
-                    let y_pos = 50.0 - (i as f32 * 60.0);
+                    for (i, (name, cost, item_id)) in weapons.iter().enumerate() {
+                        let y_pos = 50.0 - (i as f32 * 60.0);
 
-                    // Item background
-                    parent.spawn((
-                        Name::new(format!("Shop Item {}", name)),
-                        ShopItemButton { item_id: item_id.clone(), cost: *cost },
-                        Sprite::from_color(Color::srgb(0.2, 0.2, 0.3), Vec2::new(250.0, 50.0)),
-                        Transform::from_translation(Vec3::new(0.0, y_pos, 1.0)),
-                    )).with_children(|item_parent| {
-                        // Item name
-                        item_parent.spawn((
-                            Text2d::new(*name),
-                            TextFont {
-                                font_size: 18.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                            Transform::from_translation(Vec3::new(-60.0, 5.0, 1.0)),
-                        ));
+                        // Item background
+                        parent
+                            .spawn((
+                                Name::new(format!("Shop Item {}", name)),
+                                ShopItemButton {
+                                    item_id: item_id.clone(),
+                                    cost: *cost,
+                                },
+                                Sprite::from_color(
+                                    Color::srgb(0.2, 0.2, 0.3),
+                                    Vec2::new(250.0, 50.0),
+                                ),
+                                Transform::from_translation(Vec3::new(0.0, y_pos, 1.0)),
+                            ))
+                            .with_children(|item_parent| {
+                                // Item name
+                                item_parent.spawn((
+                                    Text2d::new(*name),
+                                    TextFont {
+                                        font_size: 18.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::WHITE),
+                                    Transform::from_translation(Vec3::new(-60.0, 5.0, 1.0)),
+                                ));
 
-                        // Item cost
-                        item_parent.spawn((
-                            Text2d::new(format!("${}", cost)),
-                            TextFont {
-                                font_size: 16.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(1.0, 0.8, 0.0)),
-                            Transform::from_translation(Vec3::new(60.0, 5.0, 1.0)),
-                        ));
-                    });
+                                // Item cost
+                                item_parent.spawn((
+                                    Text2d::new(format!("${}", cost)),
+                                    TextFont {
+                                        font_size: 16.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgb(1.0, 0.8, 0.0)),
+                                    Transform::from_translation(Vec3::new(60.0, 5.0, 1.0)),
+                                ));
+                            });
+                    }
                 }
-            },
-            Some(ShopType::Upgrade) => {
-                let upgrade_items = [
-                    ("1. Speed Boost", 300, ShopItem::SpeedBoost, upgrades.speed_boost, 3),
-                    ("2. Coin Magnet", 600, ShopItem::CoinMagnet, if upgrades.coin_magnet { 1 } else { 0 }, 1),
-                    ("3. Buffer Upgrade", 400, ShopItem::BufferUpgrade, upgrades.buffer_level, 10),
-                ];
+                Some(ShopType::Upgrade) => {
+                    let upgrade_items = [
+                        (
+                            "1. Speed Boost",
+                            300,
+                            ShopItem::SpeedBoost,
+                            upgrades.speed_boost,
+                            3,
+                        ),
+                        (
+                            "2. Coin Magnet",
+                            600,
+                            ShopItem::CoinMagnet,
+                            if upgrades.coin_magnet { 1 } else { 0 },
+                            1,
+                        ),
+                        (
+                            "3. Buffer Upgrade",
+                            400,
+                            ShopItem::BufferUpgrade,
+                            upgrades.buffer_level,
+                            10,
+                        ),
+                    ];
 
-                for (i, (name, base_cost, item_id, current_level, max_level)) in upgrade_items.iter().enumerate() {
-                    let y_pos = 75.0 - (i as f32 * 70.0);
+                    for (i, (name, base_cost, item_id, current_level, max_level)) in
+                        upgrade_items.iter().enumerate()
+                    {
+                        let y_pos = 75.0 - (i as f32 * 70.0);
 
-                    // Calculate dynamic cost
-                    let actual_cost = match item_id {
-                        ShopItem::BufferUpgrade => base_cost + (current_level * 200),
-                        _ => *base_cost,
-                    };
-
-                    // Determine if maxed out or available
-                    let is_maxed = *current_level >= *max_level;
-                    let item_color = if is_maxed { Color::srgb(0.4, 0.4, 0.4) } else { Color::srgb(0.2, 0.3, 0.2) };
-
-                    // Item background
-                    parent.spawn((
-                        Name::new(format!("Shop Item {}", name)),
-                        ShopItemButton { item_id: item_id.clone(), cost: actual_cost },
-                        Sprite::from_color(item_color, Vec2::new(250.0, 60.0)),
-                        Transform::from_translation(Vec3::new(0.0, y_pos, 1.0)),
-                    )).with_children(|item_parent| {
-                        // Item name with level info
-                        let display_name = if *max_level > 1 {
-                            format!("{} ({}/{})", name, current_level, max_level)
-                        } else if is_maxed {
-                            format!("{} (Owned)", name)
-                        } else {
-                            name.to_string()
+                        // Calculate dynamic cost
+                        let actual_cost = match item_id {
+                            ShopItem::BufferUpgrade => base_cost + (current_level * 200),
+                            _ => *base_cost,
                         };
 
-                        item_parent.spawn((
-                            Text2d::new(display_name),
-                            TextFont {
-                                font_size: 16.0,
-                                ..default()
-                            },
-                            TextColor(if is_maxed { Color::srgb(0.6, 0.6, 0.6) } else { Color::WHITE }),
-                            Transform::from_translation(Vec3::new(-60.0, 10.0, 1.0)),
-                        ));
-
-                        // Item cost (or "MAXED" if fully upgraded)
-                        let cost_text = if is_maxed {
-                            "MAXED".to_string()
+                        // Determine if maxed out or available
+                        let is_maxed = *current_level >= *max_level;
+                        let item_color = if is_maxed {
+                            Color::srgb(0.4, 0.4, 0.4)
                         } else {
-                            format!("${}", actual_cost)
+                            Color::srgb(0.2, 0.3, 0.2)
                         };
 
-                        item_parent.spawn((
-                            Text2d::new(cost_text),
-                            TextFont {
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(if is_maxed { Color::srgb(0.6, 0.6, 0.6) } else { Color::srgb(1.0, 0.8, 0.0) }),
-                            Transform::from_translation(Vec3::new(60.0, 10.0, 1.0)),
-                        ));
-
-                        // Effect description
-                        let effect_text = match item_id {
-                            ShopItem::BufferUpgrade => {
-                                let current_capacity = 20 + (current_level * 50);
-                                let next_capacity = 20 + ((current_level + 1) * 50);
-                                if is_maxed {
-                                    format!("Buffer: {} coins", current_capacity)
+                        // Item background
+                        parent
+                            .spawn((
+                                Name::new(format!("Shop Item {}", name)),
+                                ShopItemButton {
+                                    item_id: item_id.clone(),
+                                    cost: actual_cost,
+                                },
+                                Sprite::from_color(item_color, Vec2::new(250.0, 60.0)),
+                                Transform::from_translation(Vec3::new(0.0, y_pos, 1.0)),
+                            ))
+                            .with_children(|item_parent| {
+                                // Item name with level info
+                                let display_name = if *max_level > 1 {
+                                    format!("{} ({}/{})", name, current_level, max_level)
+                                } else if is_maxed {
+                                    format!("{} (Owned)", name)
                                 } else {
-                                    format!("{} -> {} coins", current_capacity, next_capacity)
-                                }
-                            },
-                            ShopItem::SpeedBoost => format!("Speed +{}%", current_level * 25),
-                            ShopItem::CoinMagnet => "Attracts coins".to_string(),
-                            _ => "".to_string(),
-                        };
+                                    name.to_string()
+                                };
 
-                        item_parent.spawn((
-                            Text2d::new(effect_text),
-                            TextFont {
-                                font_size: 12.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(0.8, 0.8, 0.8)),
-                            Transform::from_translation(Vec3::new(0.0, -10.0, 1.0)),
-                        ));
-                    });
+                                item_parent.spawn((
+                                    Text2d::new(display_name),
+                                    TextFont {
+                                        font_size: 16.0,
+                                        ..default()
+                                    },
+                                    TextColor(if is_maxed {
+                                        Color::srgb(0.6, 0.6, 0.6)
+                                    } else {
+                                        Color::WHITE
+                                    }),
+                                    Transform::from_translation(Vec3::new(-60.0, 10.0, 1.0)),
+                                ));
+
+                                // Item cost (or "MAXED" if fully upgraded)
+                                let cost_text = if is_maxed {
+                                    "MAXED".to_string()
+                                } else {
+                                    format!("${}", actual_cost)
+                                };
+
+                                item_parent.spawn((
+                                    Text2d::new(cost_text),
+                                    TextFont {
+                                        font_size: 14.0,
+                                        ..default()
+                                    },
+                                    TextColor(if is_maxed {
+                                        Color::srgb(0.6, 0.6, 0.6)
+                                    } else {
+                                        Color::srgb(1.0, 0.8, 0.0)
+                                    }),
+                                    Transform::from_translation(Vec3::new(60.0, 10.0, 1.0)),
+                                ));
+
+                                // Effect description
+                                let effect_text = match item_id {
+                                    ShopItem::BufferUpgrade => {
+                                        let current_capacity = 20 + (current_level * 50);
+                                        let next_capacity = 20 + ((current_level + 1) * 50);
+                                        if is_maxed {
+                                            format!("Buffer: {} coins", current_capacity)
+                                        } else {
+                                            format!(
+                                                "{} -> {} coins",
+                                                current_capacity, next_capacity
+                                            )
+                                        }
+                                    }
+                                    ShopItem::SpeedBoost => {
+                                        format!("Speed +{}%", current_level * 25)
+                                    }
+                                    ShopItem::CoinMagnet => "Attracts coins".to_string(),
+                                    _ => "".to_string(),
+                                };
+
+                                item_parent.spawn((
+                                    Text2d::new(effect_text),
+                                    TextFont {
+                                        font_size: 12.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                                    Transform::from_translation(Vec3::new(0.0, -10.0, 1.0)),
+                                ));
+                            });
+                    }
                 }
-            },
-            None => {},
-        }
-    });
+                None => {}
+            }
+        });
 }
-
 
 /// Close shop UI when leaving shop area
 fn update_shop_ui(
@@ -438,31 +521,31 @@ fn handle_shop_purchases(
                             match item {
                                 ShopItem::RapidFire => {
                                     upgrades.rapid_fire = true;
-                                },
+                                }
                                 ShopItem::SpreadShot => {
                                     upgrades.spread_shot = true;
-                                },
+                                }
                                 ShopItem::LaserBeam => {
                                     upgrades.laser_beam = true;
-                                },
+                                }
                                 ShopItem::Sniper => {
                                     upgrades.sniper = true;
-                                },
+                                }
                                 ShopItem::Hammer => {
                                     upgrades.hammer = true;
-                                },
+                                }
                                 ShopItem::Sword => {
                                     upgrades.sword = true;
-                                },
+                                }
                                 ShopItem::Bazooka => {
                                     upgrades.bazooka = true;
-                                },
-                                _ => {},
+                                }
+                                _ => {}
                             }
                         }
                     }
                 }
-            },
+            }
             Some(ShopType::Upgrade) => {
                 let upgrades_list = [
                     (ShopItem::SpeedBoost, 300),
@@ -490,29 +573,26 @@ fn handle_shop_purchases(
                             match item {
                                 ShopItem::SpeedBoost => {
                                     upgrades.speed_boost += 1;
-                                },
+                                }
                                 ShopItem::CoinMagnet => {
                                     upgrades.coin_magnet = true;
-                                },
+                                }
                                 ShopItem::BufferUpgrade => {
                                     upgrades.buffer_level += 1;
-                                },
-                                _ => {},
+                                }
+                                _ => {}
                             }
                         }
                     }
                 }
-            },
-            None => {},
+            }
+            None => {}
         }
     }
 }
 
 /// Handle weapon switching with Q/Tab keys
-fn handle_weapon_switching(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut upgrades: ResMut<PlayerUpgrades>,
-) {
+fn handle_weapon_switching(keys: Res<ButtonInput<KeyCode>>, mut upgrades: ResMut<PlayerUpgrades>) {
     if keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::Tab) {
         // Get available weapons
         let mut available_weapons = vec![WeaponType::Normal];
@@ -543,10 +623,12 @@ fn handle_weapon_switching(
         }
 
         // Find current weapon index and switch to next
-        if let Some(current_index) = available_weapons.iter().position(|&w| w == upgrades.current_weapon) {
+        if let Some(current_index) = available_weapons
+            .iter()
+            .position(|&w| w == upgrades.current_weapon)
+        {
             let next_index = (current_index + 1) % available_weapons.len();
             upgrades.current_weapon = available_weapons[next_index];
-
         }
     }
 }

@@ -13,8 +13,8 @@
 //! purposes. If you want to move the player in a smoother way,
 //! consider using a [fixed timestep](https://github.com/bevyengine/bevy/blob/main/examples/movement/physics_in_fixed_timestep.rs).
 
-use bevy::{prelude::*, window::PrimaryWindow};
 use avian2d::prelude::*;
+use bevy::{prelude::*, window::PrimaryWindow};
 
 use crate::{AppSystems, PausableSystems, demo::shop::PlayerUpgrades};
 
@@ -23,10 +23,7 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_systems(
         Update,
-        (
-                apply_movement,
-                apply_screen_limits
-            )
+        (apply_movement, apply_screen_limits)
             .chain()
             .in_set(AppSystems::Update)
             .in_set(PausableSystems),
@@ -59,19 +56,20 @@ impl Default for MovementController {
 
 fn apply_movement(
     upgrades: Res<PlayerUpgrades>,
-    mut movement_query: Query<(&MovementController, &mut LinearVelocity, &Transform), With<RigidBody>>,
+    mut movement_query: Query<
+        (&MovementController, &mut LinearVelocity, &Transform),
+        With<RigidBody>,
+    >,
 ) {
     for (controller, mut velocity, _transform) in &mut movement_query {
         let speed_multiplier = 1.0 + (upgrades.speed_boost as f32 * 0.3);
         velocity.x = controller.max_speed * speed_multiplier * controller.intent.x;
-
     }
 }
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct ScreenLimit;
-
 
 fn apply_screen_limits(
     window_query: Query<&Window, With<PrimaryWindow>>,

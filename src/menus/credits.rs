@@ -12,7 +12,6 @@ pub(super) fn plugin(app: &mut App) {
         Update,
         go_back.run_if(in_state(Menu::Credits).and(input_just_pressed(KeyCode::Escape))),
     );
-
 }
 
 fn spawn_credits_menu(mut commands: Commands) {
@@ -83,4 +82,3 @@ fn go_back_on_click(_: Trigger<Pointer<Click>>, mut next_menu: ResMut<NextState<
 fn go_back(mut next_menu: ResMut<NextState<Menu>>) {
     next_menu.set(Menu::Main);
 }
-

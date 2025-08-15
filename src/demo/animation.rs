@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::{
     AppSystems, PausableSystems,
-    demo::{movement::MovementController, /*player::PlayerAssets*/},
+    demo::{movement::MovementController /*player::PlayerAssets*/},
 };
 
 pub(super) fn plugin(app: &mut App) {
@@ -23,10 +23,9 @@ pub(super) fn plugin(app: &mut App) {
                 update_animation_movement,
                 update_animation_atlas,
                 //trigger_step_sound_effect,
-            )
-                //.chain()
-                //.run_if(resource_exists::<PlayerAssets>)
-                //.in_set(AppSystems::Update),
+            ), //.chain()
+               //.run_if(resource_exists::<PlayerAssets>)
+               //.in_set(AppSystems::Update),
         )
             .in_set(PausableSystems),
     );

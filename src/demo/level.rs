@@ -1,23 +1,22 @@
 //! Spawn the main level.
 
-use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-use bevy::sprite::Material2dPlugin;
 use avian2d::prelude::*;
+use bevy::prelude::*;
+use bevy::sprite::Material2dPlugin;
+use bevy::window::PrimaryWindow;
 
 use crate::{
+    AppSystems, PausableSystems,
     asset_tracking::LoadResource,
     demo::{
         player::{PlayerAssets, player},
-        shooting::{Target, CoinBoxMaterial},
+        shooting::{CoinBoxMaterial, Target},
     },
     screens::Screen,
-    AppSystems, PausableSystems,
 };
 
 #[derive(Component)]
 pub struct Level;
-
 
 #[derive(Component)]
 pub struct InvisibleWall;
@@ -137,25 +136,31 @@ pub fn spawn_level(
 
 /// System that positions invisible walls when first spawned
 fn position_invisible_walls(
-    mut left_wall_query: Query<&mut Transform, (With<LeftWall>, Added<LeftWall>, Without<RightWall>)>,
-    mut right_wall_query: Query<&mut Transform, (With<RightWall>, Added<RightWall>, Without<LeftWall>)>,
+    mut left_wall_query: Query<
+        &mut Transform,
+        (With<LeftWall>, Added<LeftWall>, Without<RightWall>),
+    >,
+    mut right_wall_query: Query<
+        &mut Transform,
+        (With<RightWall>, Added<RightWall>, Without<LeftWall>),
+    >,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     let Ok(window) = window_query.single() else {
         return; // Skip if window not ready yet
     };
     let window_aspect = window.width() / window.height();
-        let viewport_height = 600.0;
-        let viewport_width = viewport_height * window_aspect;
-        let half_width = viewport_width / 2.0;
+    let viewport_height = 600.0;
+    let viewport_width = viewport_height * window_aspect;
+    let half_width = viewport_width / 2.0;
 
-        for mut transform in &mut left_wall_query {
-            transform.translation.x = -half_width + 50.0;
-        }
+    for mut transform in &mut left_wall_query {
+        transform.translation.x = -half_width + 50.0;
+    }
 
-        for mut transform in &mut right_wall_query {
-            transform.translation.x = half_width - 50.0;
-        }
+    for mut transform in &mut right_wall_query {
+        transform.translation.x = half_width - 50.0;
+    }
 }
 
 /// System that updates background size when window is resized
@@ -238,8 +243,8 @@ fn coin_box(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<CoinBoxMaterial>>,
 ) -> impl Bundle {
-            let coinbox_width= 70.0;
-            let coinbox_height = 70.0;
+    let coinbox_width = 70.0;
+    let coinbox_height = 70.0;
     (
         Name::new("Coin Box"),
         Target::default(), // shootable with damage timers
@@ -302,4 +307,3 @@ fn shop_box_weapons(level_assets: &LevelAssets) -> impl Bundle {
         CollisionEventsEnabled,
     )
 }
-

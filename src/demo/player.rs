@@ -1,18 +1,13 @@
 //! Player-specific behavior.
 
+use crate::asset_tracking::LoadResource;
+use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use avian2d::prelude::*;
-use crate::asset_tracking::LoadResource;
 
 use crate::{
     AppSystems, PausableSystems,
-    demo::{
-        movement::{
-            MovementController,
-            ScreenLimit
-        },
-    },
+    demo::movement::{MovementController, ScreenLimit},
 };
 
 pub(super) fn plugin(app: &mut App) {
@@ -33,10 +28,7 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// The player character.
-pub fn player(
-    max_speed: f32,
-    player_assets: &PlayerAssets,
-) -> impl Bundle {
+pub fn player(max_speed: f32, player_assets: &PlayerAssets) -> impl Bundle {
     let player_height = 48.0;
     let player_width = 32.0;
 
@@ -65,7 +57,6 @@ pub fn player(
         AngularDamping(0.0),
     )
 }
-
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[reflect(Component)]

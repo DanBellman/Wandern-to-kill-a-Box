@@ -1,19 +1,24 @@
 //! Simple HUD system
 
+use crate::{AppSystems, PausableSystems, demo::shop::PlayerUpgrades, screens::Screen};
 use bevy::prelude::*;
 use bevy::text::FontSmoothing;
-use crate::{screens::Screen, AppSystems, PausableSystems, demo::shop::PlayerUpgrades};
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<GameTimer>();
     app.insert_resource(CoinBuffer::new());
     app.add_systems(OnEnter(Screen::Gameplay), (spawn_hud, start_game_timer));
-    app.add_systems(Update, (
-        update_timer_display,
-        update_coin_buffer,
-        update_buffer_display,
-        update_buffer_count_text,
-    ).in_set(AppSystems::Update).in_set(PausableSystems));
+    app.add_systems(
+        Update,
+        (
+            update_timer_display,
+            update_coin_buffer,
+            update_buffer_display,
+            update_buffer_count_text,
+        )
+            .in_set(AppSystems::Update)
+            .in_set(PausableSystems),
+    );
 }
 
 #[derive(Component)]
@@ -60,9 +65,8 @@ impl CoinBuffer {
         self.current = (self.current + 1.0).min(self.max);
     }
 
-    pub fn drain(&mut self, delta_time: f32) {
-        let drain_rate = 10.0;
-        self.current = (self.current - drain_rate * delta_time).max(0.0);
+    pub fn drain(&mut self, amount: f32) {
+        self.current = (self.current - amount).max(0.0);
     }
 
     pub fn get_percentage(&self) -> f32 {
@@ -111,37 +115,39 @@ fn spawn_hud(mut commands: Commands) {
     ));
 
     // Buffer Bar (right side)
-    commands.spawn((
-        Name::new("Buffer Bar Container"),
-        GameHud,
-        BufferBar,
-        Sprite::from_color(Color::srgb(0.3, 0.3, 0.3), Vec2::new(120.0, 20.0)),
-        Transform::from_translation(Vec3::new(200.0, -280.0, 10.0)),
-        StateScoped(Screen::Gameplay),
-    )).with_children(|parent| {
-        // Buffer bar fill
-        parent.spawn((
-            Name::new("Buffer Bar Fill"),
-            BufferBarFill,
-            Sprite::from_color(Color::srgb(0.0, 0.8, 0.2), Vec2::new(0.0, 18.0)),
-            Transform::from_translation(Vec3::new(-60.0, 0.0, 1.0)),
-        ));
+    commands
+        .spawn((
+            Name::new("Buffer Bar Container"),
+            GameHud,
+            BufferBar,
+            Sprite::from_color(Color::srgb(0.3, 0.3, 0.3), Vec2::new(120.0, 20.0)),
+            Transform::from_translation(Vec3::new(200.0, -280.0, 10.0)),
+            StateScoped(Screen::Gameplay),
+        ))
+        .with_children(|parent| {
+            // Buffer bar fill
+            parent.spawn((
+                Name::new("Buffer Bar Fill"),
+                BufferBarFill,
+                Sprite::from_color(Color::srgb(0.0, 0.8, 0.2), Vec2::new(0.0, 18.0)),
+                Transform::from_translation(Vec3::new(-60.0, 0.0, 1.0)),
+            ));
 
-        // Buffer count text inside the bar
-        parent.spawn((
-            Name::new("Buffer Count Text"),
-            BufferCountText,
-            Text2d::new("0/20"),
-            TextFont {
-                font_size: 14.0,
-                ..default()
-            }
-            .with_font_smoothing(FontSmoothing::None),
-            TextColor(Color::WHITE),
-            TextLayout::new_with_justify(JustifyText::Center),
-            Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
-        ));
-    });
+            // Buffer count text inside the bar
+            parent.spawn((
+                Name::new("Buffer Count Text"),
+                BufferCountText,
+                Text2d::new("0/20"),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                }
+                .with_font_smoothing(FontSmoothing::None),
+                TextColor(Color::WHITE),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
+            ));
+        });
 
     commands.spawn((
         Name::new("Buffer Text Label"),
@@ -157,7 +163,6 @@ fn spawn_hud(mut commands: Commands) {
         Transform::from_translation(Vec3::new(200.0, -250.0, 10.0)),
         StateScoped(Screen::Gameplay),
     ));
-
 }
 
 /// Start the game timer when entering gameplay
@@ -192,9 +197,9 @@ fn update_coin_buffer(
         buffer.max = new_max;
     }
 
-    // Only drain if there are coins in the buffer
     if buffer.current > 0.0 {
-        buffer.drain(time.delta_secs());
+        let drain_rate = buffer.max * 0.1 * upgrades.buffer_level as f32;
+        buffer.drain(time.delta_secs() * drain_rate);
     }
 }
 
