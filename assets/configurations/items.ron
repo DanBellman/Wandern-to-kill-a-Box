@@ -1,0 +1,83 @@
+(
+    weapons: (
+        types: {
+            "Rapid Fire": (
+                cost: 500,
+                damage: 10,
+                weapon_type: "RapidFire"
+            ),
+            "Uzi": (
+                cost: 400,
+                damage: 10,
+                weapon_type: "Uzi"
+            ),
+            "Spread Shot": (
+                cost: 750,
+                damage: 10,
+                weapon_type: "SpreadShot"
+            ),
+            "Laser Beam": (
+                cost: 1000,
+                damage: 10,
+                weapon_type: "LaserBeam"
+            ),
+            "Sniper": (
+                cost: 2000,
+                damage: 10,
+                weapon_type: "Sniper"
+            ),
+            "Bazooka": (
+                cost: 5000,
+                damage: 10,
+                weapon_type: "Bazooka"
+            ),
+            "Hammer": (
+                cost: 3000,
+                damage: 10,
+                weapon_type: "Hammer"
+            ),
+            "Sword": (
+                cost: 4000,
+                damage: 10,
+                weapon_type: "Sword"
+            ),
+        },
+    ),
+    upgrades: (
+        types: {
+            "Speed Boost": (
+                cost: 300,
+                player_speed_multiplier: Some(1.3),
+                upgrade_type: "SpeedBoost"
+            ),
+            "Coin Magnet": (
+                cost: 600,
+                upgrade_type: "CoinMagnet"
+            ),
+            "Buffer Upgrade": (
+                cost: 400,
+                upgrade_type: "BufferUpgrade",
+                buffer: Some({
+                    "Level 1": (
+                        buffer_amount: 100,
+                    ),
+                    "Level 2": (
+                        buffer_amount: 1000,
+                    ),
+                    "Level 3": (
+                        buffer_amount: 10000,
+                    ),
+                    "Level 4": (
+                        buffer_amount: 25000,
+                    ),
+                    "Level 5": (
+                        buffer_amount: 50000,
+                    ),
+                    "Level 6": (
+                        buffer_amount: 100000,
+                    ),
+                })
+            ),
+        },
+    ),
+)

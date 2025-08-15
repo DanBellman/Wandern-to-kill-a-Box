@@ -92,6 +92,80 @@ where
     )
 }
 
+/// A shop button that places the shop item component on the click-receiving entity
+pub fn shop_button<E, B, M, I, T>(
+    text: impl Into<String>, 
+    action: I,
+    shop_component: T
+) -> impl Bundle 
+where
+    E: Event,
+    B: Bundle,
+    I: IntoObserverSystem<E, B, M>,
+    T: Bundle,
+{
+    shop_button_base(
+        text,
+        action,
+        (
+            Node {
+                width: Px(380.0),
+                height: Px(80.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BorderRadius::MAX,
+        ),
+        shop_component,
+    )
+}
+
+/// A simple shop button with text and an action defined as an [`Observer`]. The button's layout is provided by `button_bundle`.
+fn shop_button_base<E, B, M, I, T>(
+    text: impl Into<String>,
+    action: I,
+    button_bundle: impl Bundle,
+    shop_component: T,
+) -> impl Bundle
+where
+    E: Event,
+    B: Bundle,
+    I: IntoObserverSystem<E, B, M>,
+    T: Bundle,
+{
+    let text = text.into();
+    let action = IntoObserverSystem::into_system(action);
+    (
+        Name::new("Shop Button"),
+        Node::default(),
+        Children::spawn(SpawnWith(|parent: &mut ChildSpawner| {
+            parent
+                .spawn((
+                    Name::new("Shop Button Inner"),
+                    Button,
+                    BackgroundColor(BUTTON_BACKGROUND),
+                    InteractionPalette {
+                        none: BUTTON_BACKGROUND,
+                        hovered: BUTTON_HOVERED_BACKGROUND,
+                        pressed: BUTTON_PRESSED_BACKGROUND,
+                    },
+                    children![(
+                        Name::new("Shop Button Text"),
+                        Text(text),
+                        TextFont::from_font_size(40.0),
+                        TextColor(BUTTON_TEXT),
+                        // Don't bubble picking events from the text up to the button.
+                        Pickable::IGNORE,
+                    )],
+                    shop_component,
+                ))
+                .insert(button_bundle)
+                .observe(action);
+        })),
+    )
+}
+
 /// A simple button with text and an action defined as an [`Observer`]. The button's layout is provided by `button_bundle`.
 fn button_base<E, B, M, I>(
     text: impl Into<String>,

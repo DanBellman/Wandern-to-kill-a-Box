@@ -3,26 +3,73 @@
 use crate::{
     AppSystems, PausableSystems,
     demo::{
-        level::{UpgradeShop, WeaponShop},
+        level::{WeaponShop, UpgradeShop},
         player::Player,
         shooting::Money,
     },
-    screens::Screen,
 };
-use avian2d::prelude::*;
 use bevy::prelude::*;
+use avian2d::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
 use crate::demo::shop::shop_ui::spawn_shop_ui;
+use crate::demo::shop::shop_ui::update_shop_ui;
+pub const ITEM_CONFIG_PATH: &str = "assets/configurations/";
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct WeaponData {
+    pub cost: u32,
+    pub damage: i32,
+    pub weapon_type: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UpgradeData {
+    pub cost: u32,
+    pub upgrade_type: String,
+    #[serde(default)]
+    pub player_speed_multiplier: Option<f32>,
+    #[serde(default)]
+    pub buffer: Option<HashMap<String, BufferLevel>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct BufferLevel {
+    pub buffer_amount: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct WeaponsConfig {
+    pub types: HashMap<String, WeaponData>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UpgradesConfig {
+    pub types: HashMap<String, UpgradeData>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ItemsConfig {
+    pub weapons: WeaponsConfig,
+    pub upgrades: UpgradesConfig,
+}
+
+#[derive(Resource)]
+pub struct ItemsData {
+    pub config: ItemsConfig,
+}
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<ShopState>();
     app.init_resource::<PlayerUpgrades>();
+    app.add_systems(Startup, load_items_config);
     app.add_systems(
         Update,
         (
-            detect_shop_proximity,
+            handle_player_shop_collisions,
             handle_shop_input,
             update_shop_ui,
-            handle_shop_purchases,
             handle_weapon_switching,
         )
             .in_set(AppSystems::Update)
@@ -30,23 +77,100 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
+fn load_items_config(mut commands: Commands) {
+    let file_path = "assets/configurations/items.ron";
+    
+    match std::fs::read_to_string(file_path) {
+        Ok(content) => {
+            match ron::from_str::<ItemsConfig>(&content) {
+                Ok(config) => {
+                    commands.insert_resource(ItemsData { config });
+                    info!("Successfully loaded items configuration");
+                }
+                Err(e) => {
+                    error!("Failed to parse items.ron: {}", e);
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to read items.ron file: {}", e);
+        }
+    }
+}
+
+/// Handle sensor collisions between player and shops using CollisionStarted/Ended events
+fn handle_player_shop_collisions(
+    mut collision_started: EventReader<CollisionStarted>,
+    mut collision_ended: EventReader<CollisionEnded>,
+    mut shop_state: ResMut<ShopState>,
+    player_query: Query<Entity, With<Player>>,
+    weapon_shop_query: Query<Entity, With<WeaponShop>>,
+    upgrade_shop_query: Query<Entity, With<UpgradeShop>>,
+) {
+    // Handle collision started events (player enters shop sensor)
+    for CollisionStarted(entity1, entity2) in collision_started.read() {
+        let (player_entity, shop_entity) = 
+            if player_query.contains(*entity1) {
+                (Some(*entity1), *entity2)
+            } else if player_query.contains(*entity2) {
+                (Some(*entity2), *entity1)
+            } else {
+                continue; // Neither entity is the player
+            };
+
+        if player_entity.is_some() {
+            // Check which type of shop the player collided with
+            if weapon_shop_query.contains(shop_entity) {
+                shop_state.is_near_shop = true;
+                shop_state.current_shop = Some(Shop::Weapon);
+                info!("Player entered weapon shop area");
+            } else if upgrade_shop_query.contains(shop_entity) {
+                shop_state.is_near_shop = true;
+                shop_state.current_shop = Some(Shop::Upgrade);
+                info!("Player entered upgrade shop area");
+            }
+        }
+    }
+
+    // Handle collision ended events (player leaves shop sensor)
+    for CollisionEnded(entity1, entity2) in collision_ended.read() {
+        let (player_entity, shop_entity) = 
+            if player_query.contains(*entity1) {
+                (Some(*entity1), *entity2)
+            } else if player_query.contains(*entity2) {
+                (Some(*entity2), *entity1)
+            } else {
+                continue; // Neither entity is the player
+            };
+
+        if player_entity.is_some() {
+            // Check if the player left a shop area
+            if weapon_shop_query.contains(shop_entity) || upgrade_shop_query.contains(shop_entity) {
+                shop_state.is_near_shop = false;
+                shop_state.current_shop = None;
+                info!("Player left shop area");
+            }
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct ShopUI;
 
 #[derive(Component)]
 pub struct ShopItemButton {
-    pub item_id: ShopItem,
-    pub cost: u32,
+    pub item_name: String,
+    pub item_type: ItemType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ShopItem {
     pub name: &'static str,
     pub item_type: ItemType,
     pub cost: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
     Weapon(WeaponType),
     Upgrade(UpgradeType),
@@ -211,15 +335,11 @@ impl PlayerUpgrades {
     }
 
     pub fn upgrade_names() -> Vec<&'static str> {
-        vec![
-            "Speed Boost",
-            "Coin Magnet",
-            "Buffer Upgrade",
-        ]
+        vec!["Speed Boost", "Coin Magnet", "Buffer Upgrade"]
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub enum WeaponType {
     #[default]
     Normal,
@@ -240,7 +360,7 @@ pub enum WeaponType {
     //UltraSniper //these ultra types of weapons are almost funny big
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub enum UpgradeType {
     #[default]
     Normal,
@@ -249,57 +369,29 @@ pub enum UpgradeType {
     BufferUpgrade,
 }
 
-/// Detect when player is near a shop
-fn detect_shop_proximity(
-    mut collision_events: EventReader<CollisionStarted>,
-    mut collision_ended: EventReader<CollisionEnded>,
-    player_query: Query<Entity, With<Player>>,
-    weapon_shop_query: Query<Entity, With<WeaponShop>>,
-    upgrade_shop_query: Query<Entity, With<UpgradeShop>>,
-    mut shop_state: ResMut<ShopState>,
-) {
-    let player_entity = player_query.single().ok();
-
-    // Check for shop entry
-    for CollisionStarted(entity1, entity2) in collision_events.read() {
-        if let Some(player) = player_entity {
-            let shop_entity = if *entity1 == player {
-                Some(*entity2)
-            } else if *entity2 == player {
-                Some(*entity1)
-            } else {
-                None
-            };
-
-            if let Some(shop) = shop_entity {
-                if weapon_shop_query.contains(shop) {
-                    shop_state.current_shop = Some(Shop::Weapon);
-                    shop_state.is_near_shop = true;
-                } else if upgrade_shop_query.contains(shop) {
-                    shop_state.current_shop = Some(Shop::Upgrade);
-                    shop_state.is_near_shop = true;
-                }
-            }
+impl WeaponType {
+    pub fn from_string(s: &str) -> Self {
+        match s {
+            "RapidFire" => WeaponType::RapidFire,
+            "Uzi" => WeaponType::Uzi,
+            "SpreadShot" => WeaponType::SpreadShot,
+            "LaserBeam" => WeaponType::LaserBeam,
+            "Sniper" => WeaponType::Sniper,
+            "Bazooka" => WeaponType::Bazooka,
+            "Hammer" => WeaponType::Hammer,
+            "Sword" => WeaponType::Sword,
+            _ => WeaponType::Normal,
         }
     }
+}
 
-    // Check for shop exit
-    for CollisionEnded(entity1, entity2) in collision_ended.read() {
-        if let Some(player) = player_entity {
-            let shop_entity = if *entity1 == player {
-                Some(*entity2)
-            } else if *entity2 == player {
-                Some(*entity1)
-            } else {
-                None
-            };
-
-            if let Some(shop) = shop_entity {
-                if weapon_shop_query.contains(shop) || upgrade_shop_query.contains(shop) {
-                    shop_state.current_shop = None;
-                    shop_state.is_near_shop = false;
-                }
-            }
+impl UpgradeType {
+    pub fn from_string(s: &str) -> Self {
+        match s {
+            "SpeedBoost" => UpgradeType::SpeedBoost,
+            "CoinMagnet" => UpgradeType::CoinMagnet,
+            "BufferUpgrade" => UpgradeType::BufferUpgrade,
+            _ => UpgradeType::Normal,
         }
     }
 }
@@ -310,183 +402,114 @@ fn handle_shop_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
     existing_ui_query: Query<Entity, With<ShopUI>>,
-    upgrades: Res<PlayerUpgrades>,
+    items_data: Option<Res<ItemsData>>,
 ) {
-    if shop_state.is_near_shop && keys.just_pressed(KeyCode::KeyE) {
-        // Toggle shop UI
-        if existing_ui_query.is_empty() {
-            spawn_shop_ui(commands, shop_state);
-        } else {
-            // Close existing UI
-            for entity in &existing_ui_query {
-                commands.entity(entity).despawn();
+    if keys.just_pressed(KeyCode::KeyE) {
+        if shop_state.is_near_shop {
+            // Toggle shop UI
+            if existing_ui_query.is_empty() {
+                spawn_shop_ui(commands, shop_state, items_data);
+            } else {
+                // Close existing UI
+                for entity in &existing_ui_query {
+                    commands.entity(entity).despawn();
+                }
             }
         }
     }
 }
 
 pub fn buy_item(
-    _: Trigger<Pointer<Click>>,
-    current_state: Res<State<Shop>>,
-    mut next_shop: ResMut<NextState<Shop>>
-) {
-    let _item = match current_state.get() {
-        Shop::Weapon => ShopItem::from_name("Rapid Fire"),
-        Shop::Upgrade => ShopItem::from_name("Speed Boost"),
-        _ => return,
-    };
-
-    next_shop.set(Shop::Weapon);
-}
-
-
-
-/// Close shop UI when leaving shop area
-fn update_shop_ui(
-    shop_state: Res<ShopState>,
-    mut commands: Commands,
-    ui_query: Query<Entity, With<ShopUI>>,
-) {
-    // Only close UI when leaving shop area
-    if !shop_state.is_near_shop && !ui_query.is_empty() {
-        for entity in &ui_query {
-            commands.entity(entity).despawn();
-        }
-    }
-}
-
-/// Handle shop purchases with number keys
-fn handle_shop_purchases(
-    shop_state: Res<ShopState>,
-    keys: Res<ButtonInput<KeyCode>>,
+    trigger: Trigger<Pointer<Click>>,
+    items_data: Option<Res<ItemsData>>,
     mut money: ResMut<Money>,
     mut upgrades: ResMut<PlayerUpgrades>,
+    button_query: Query<(Entity, &ShopItemButton)>,
 ) {
-    if !shop_state.is_near_shop {
+    let Some(items_data) = items_data else {
+        warn!("Items data not loaded yet");
+        return;
+    };
+
+    // Try to get the ShopItemButton component from the triggered entity
+    let Ok((_, button)) = button_query.get(trigger.target()) else {
+        warn!("Could not find ShopItemButton component on clicked entity: {:?}", trigger.target());
+        return;
+    };
+
+    let (cost, can_buy) = match &button.item_type {
+        ItemType::Weapon(weapon_type) => {
+            if let Some(weapon_data) = items_data.config.weapons.types.get(&button.item_name) {
+                let can_buy = match weapon_type {
+                    WeaponType::RapidFire => !upgrades.rapid_fire,
+                    WeaponType::Uzi => !upgrades.uzi,
+                    WeaponType::SpreadShot => !upgrades.spread_shot,
+                    WeaponType::LaserBeam => !upgrades.laser_beam,
+                    WeaponType::Sniper => !upgrades.sniper,
+                    WeaponType::Bazooka => !upgrades.bazooka,
+                    WeaponType::Hammer => !upgrades.hammer,
+                    WeaponType::Sword => !upgrades.sword,
+                    _ => false,
+                };
+                (weapon_data.cost, can_buy)
+            } else {
+                warn!("Weapon {} not found in config", button.item_name);
+                return;
+            }
+        }
+        ItemType::Upgrade(upgrade_type) => {
+            if let Some(upgrade_data) = items_data.config.upgrades.types.get(&button.item_name) {
+                let (cost, can_buy) = match upgrade_type {
+                    UpgradeType::SpeedBoost => (upgrade_data.cost, upgrades.speed_boost < 3),
+                    UpgradeType::CoinMagnet => (upgrade_data.cost, !upgrades.coin_magnet),
+                    UpgradeType::BufferUpgrade => {
+                        let additional_cost = (upgrades.buffer_level.saturating_sub(1)) * 200;
+                        let total_cost = upgrade_data.cost + additional_cost;
+                        (total_cost, upgrades.buffer_level < 10)
+                    }
+                    _ => (upgrade_data.cost, false),
+                };
+                (cost, can_buy)
+            } else {
+                warn!("Upgrade {} not found in config", button.item_name);
+                return;
+            }
+        }
+    };
+
+    if !can_buy {
+        warn!("Cannot buy item: already owned or at max level");
         return;
     }
 
-    let purchase_key = if keys.just_pressed(KeyCode::Digit1) {
-        Some(0)
-    } else if keys.just_pressed(KeyCode::Digit2) {
-        Some(1)
-    } else if keys.just_pressed(KeyCode::Digit3) {
-        Some(2)
-    } else if keys.just_pressed(KeyCode::Digit4) {
-        Some(3)
-    } else if keys.just_pressed(KeyCode::Digit5) {
-        Some(4)
-    } else if keys.just_pressed(KeyCode::Digit6) {
-        Some(5)
-    } else if keys.just_pressed(KeyCode::Digit7) {
-        Some(6)
-    } else {
-        None
-    };
+    if money.amount < cost {
+        warn!("Not enough money to buy {} (need {}, have {})", button.item_name, cost, money.amount);
+        return;
+    }
 
-    if let Some(item_index) = purchase_key {
-        match shop_state.current_shop {
-            Some(Shop::Weapon) => {
-                let weapons = [
-                    (ShopItem::from_name("Rapid Fire"), 500),
-                    (ShopItem::from_name("Spread Shot"), 750),
-                    (ShopItem::from_name("Laser Beam"), 1000),
-                    (ShopItem::from_name("Sniper"), 2000),
-                    (ShopItem::from_name("Hammer"), 3000),
-                    (ShopItem::from_name("Sword"), 4000),
-                    (ShopItem::from_name("Bazooka"), 5000),
-                ];
+    money.amount -= cost;
 
-                if let Some((item, cost)) = weapons.get(item_index) {
-                    if money.amount >= *cost {
-                        let can_buy = match &item.item_type {
-                            ItemType::Weapon(WeaponType::RapidFire) => !upgrades.rapid_fire,
-                            ItemType::Weapon(WeaponType::SpreadShot) => !upgrades.spread_shot,
-                            ItemType::Weapon(WeaponType::LaserBeam) => !upgrades.laser_beam,
-                            ItemType::Weapon(WeaponType::Sniper) => !upgrades.sniper,
-                            ItemType::Weapon(WeaponType::Hammer) => !upgrades.hammer,
-                            ItemType::Weapon(WeaponType::Sword) => !upgrades.sword,
-                            ItemType::Weapon(WeaponType::Bazooka) => !upgrades.bazooka,
-                            _ => false,
-                        };
-
-                        if can_buy {
-                            money.amount -= cost;
-                            match &item.item_type {
-                                ItemType::Weapon(WeaponType::RapidFire) => {
-                                    upgrades.rapid_fire = true;
-                                }
-                                ItemType::Weapon(WeaponType::SpreadShot) => {
-                                    upgrades.spread_shot = true;
-                                }
-                                ItemType::Weapon(WeaponType::LaserBeam) => {
-                                    upgrades.laser_beam = true;
-                                }
-                                ItemType::Weapon(WeaponType::Sniper) => {
-                                    upgrades.sniper = true;
-                                }
-                                ItemType::Weapon(WeaponType::Hammer) => {
-                                    upgrades.hammer = true;
-                                }
-                                ItemType::Weapon(WeaponType::Sword) => {
-                                    upgrades.sword = true;
-                                }
-                                ItemType::Weapon(WeaponType::Bazooka) => {
-                                    upgrades.bazooka = true;
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            Some(Shop::Upgrade) => {
-                let upgrades_list = [
-                    (ShopItem::from_name("Speed Boost"), 300),
-                    (ShopItem::from_name("Coin Magnet"), 600),
-                    (ShopItem::from_name("Buffer Upgrade"), 400),
-                ];
-
-                if let Some((item, cost)) = upgrades_list.get(item_index) {
-                    // Calculate dynamic cost for upgradeable items
-                    let actual_cost = match &item.item_type {
-                        ItemType::Upgrade(UpgradeType::BufferUpgrade) => *cost + (upgrades.buffer_level * 200), // Cost increases with each level
-                        _ => *cost,
-                    };
-
-                    if money.amount >= actual_cost {
-                        let can_buy = match &item.item_type {
-                            ItemType::Upgrade(UpgradeType::SpeedBoost) => upgrades.speed_boost < 3, // Max 3 levels
-                            ItemType::Upgrade(UpgradeType::CoinMagnet) => !upgrades.coin_magnet,
-                            ItemType::Upgrade(UpgradeType::BufferUpgrade) => upgrades.buffer_level < 10, // Max 10 levels
-                            _ => false,
-                        };
-
-                        if can_buy {
-                            money.amount -= actual_cost;
-                            match &item.item_type {
-                                ItemType::Upgrade(UpgradeType::SpeedBoost) => {
-                                    upgrades.speed_boost += 1;
-                                }
-                                ItemType::Upgrade(UpgradeType::CoinMagnet) => {
-                                    upgrades.coin_magnet = true;
-                                }
-                                ItemType::Upgrade(UpgradeType::BufferUpgrade) => {
-                                    upgrades.buffer_level += 1;
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            Some(Shop::None) => {
-                // No specific shop selected, maybe show main shop menu
-            }
-            None => {}
-        }
+    match &button.item_type {
+        ItemType::Weapon(weapon_type) => match weapon_type {
+            WeaponType::RapidFire => upgrades.rapid_fire = true,
+            WeaponType::Uzi => upgrades.uzi = true,
+            WeaponType::SpreadShot => upgrades.spread_shot = true,
+            WeaponType::LaserBeam => upgrades.laser_beam = true,
+            WeaponType::Sniper => upgrades.sniper = true,
+            WeaponType::Bazooka => upgrades.bazooka = true,
+            WeaponType::Hammer => upgrades.hammer = true,
+            WeaponType::Sword => upgrades.sword = true,
+            _ => {}
+        },
+        ItemType::Upgrade(upgrade_type) => match upgrade_type {
+            UpgradeType::SpeedBoost => upgrades.speed_boost += 1,
+            UpgradeType::CoinMagnet => upgrades.coin_magnet = true,
+            UpgradeType::BufferUpgrade => upgrades.buffer_level += 1,
+            _ => {}
+        },
     }
 }
+
 
 /// Handle weapon switching with Q/Tab keys
 fn handle_weapon_switching(keys: Res<ButtonInput<KeyCode>>, mut upgrades: ResMut<PlayerUpgrades>) {
