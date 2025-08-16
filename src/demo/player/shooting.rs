@@ -25,6 +25,7 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<Projectile>();
     app.register_type::<Coin>();
     app.register_type::<CoinLanded>();
+    app.register_type::<CoinShouldLand>();
     app.register_type::<LaserBeam>();
     app.init_resource::<Money>();
 
@@ -39,7 +40,8 @@ pub(super) fn plugin(app: &mut App) {
             handle_laser_continuous_damage,
             collect_coins,
             update_money_display,
-            disable_coin_physics_on_ground,
+            mark_coins_for_landing,
+            disable_marked_coin_physics,
         )
             .in_set(AppSystems::Update)
             .in_set(PausableSystems)
@@ -80,6 +82,10 @@ pub struct Coin {
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct CoinLanded;
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct CoinShouldLand;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -392,7 +398,7 @@ fn spawn_weapon_coins(
     weapon_type: WeaponType,
     level_assets: &Res<LevelAssets>,
     meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
+    _materials: &mut ResMut<Assets<ColorMaterial>>,
     coin_materials: &mut ResMut<Assets<CoinMaterial>>,
 ) {
     use std::f32::consts::TAU;
@@ -411,11 +417,7 @@ fn spawn_weapon_coins(
 
     for i in 0..coin_count {
         let mut rng = rand::thread_rng();
-
-        // Completely random angle
         let angle: f32 = rng.gen_range(0.0..TAU);
-
-        // Random distance from center
         let distance = rng.gen_range(20.0..80.0);
 
         let random_offset = Vec2::new(angle.cos() * distance, angle.sin() * distance);
@@ -425,16 +427,10 @@ fn spawn_weapon_coins(
             Coin {
                 value: base_value / coin_count,
             },
-            // Shimmer shader version
             Mesh2d(meshes.add(Circle::new(8.0))),
             MeshMaterial2d(coin_materials.add(CoinMaterial {
                 base_color_texture: level_assets.coin.clone(),
             })),
-            // Yellow procedural version (uncomment to test performance)
-            // This works: start
-            // Mesh2d(meshes.add(Circle::new(8.0))),
-            // MeshMaterial2d(materials.add(Color::srgb(1.0, 0.8, 0.0))),
-            // This works: end
             Transform::from_translation((position + random_offset).extend(1.0)),
             RigidBody::Dynamic,
             Collider::circle(8.0),
@@ -492,6 +488,7 @@ fn update_money_display(money: Res<Money>, mut text_query: Query<&mut Text2d, Wi
 }
 
 /// Spawn a continuous laser beam
+/// FIXME
 fn spawn_continuous_laser(commands: &mut Commands, start_pos: Vec2, direction: Vec2) {
     let laser_length = 600.0;
 
@@ -516,6 +513,7 @@ fn spawn_continuous_laser(commands: &mut Commands, start_pos: Vec2, direction: V
 }
 
 /// Update laser beam position and direction
+/// FIXME
 fn handle_laser_beam(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -549,6 +547,7 @@ fn handle_laser_beam(
 /// Handle continuous laser beam damage to targets
 /// This should be like the melee weapons, the only difference is that
 /// the damage is not one time, but continuous.
+/// FIXME
 fn handle_laser_continuous_damage(
     laser_query: Query<&Transform, With<LaserBeam>>,
     mut target_query: Query<(&Transform, &mut Target)>,
@@ -626,16 +625,14 @@ impl Material2d for CoinMaterial {
     }
 }
 
-/// Disable physics for coins that have landed on the ground
-fn disable_coin_physics_on_ground(
+/// Mark coins that have hit the ground for physics removal. Way better performnace that way.
+fn mark_coins_for_landing(
     mut collision_events: EventReader<CollisionStarted>,
-    coin_query: Query<Entity, (With<Coin>, Without<CoinLanded>)>,
-    ground_query: Query<Entity, With<Name>>,
+    coin_query: Query<Entity, (With<Coin>, Without<CoinLanded>, Without<CoinShouldLand>)>,
     name_query: Query<&Name>,
     mut commands: Commands,
 ) {
     for CollisionStarted(entity1, entity2) in collision_events.read() {
-        // Check if a coin hit the invisible ground
         let (coin_entity, ground_entity) = if coin_query.contains(*entity1) {
             (*entity1, *entity2)
         } else if coin_query.contains(*entity2) {
@@ -644,22 +641,37 @@ fn disable_coin_physics_on_ground(
             continue;
         };
 
-        // Check if the other entity is the invisible ground
         if let Ok(name) = name_query.get(ground_entity) {
             if name.as_str() == "Invisible Ground" {
-                // Only modify the coin if it still exists and hasn't been collected
-                if coin_query.get(coin_entity).is_ok() {
-                    commands
-                        .entity(coin_entity)
-                        .insert(CoinLanded)
-                        .remove::<RigidBody>()
-                        .remove::<LinearVelocity>()
-                        .remove::<AngularVelocity>()
-                        .remove::<GravityScale>()
-                        .remove::<LockedAxes>();
-                    // Keep CollisionLayers and Collider so player can still collect the coin
-                }
+                // Use queue to avoid panic if entity was despawned
+                commands.queue(move |world: &mut World| {
+                    if let Ok(mut entity_mut) = world.get_entity_mut(coin_entity) {
+                        entity_mut.insert(CoinShouldLand);
+                    }
+                });
             }
         }
+    }
+}
+
+/// Disable physics for coins marked for landing
+fn disable_marked_coin_physics(
+    coin_query: Query<Entity, (With<Coin>, With<CoinShouldLand>, Without<CoinLanded>)>,
+    mut commands: Commands,
+) {
+    for coin_entity in &coin_query {
+        //Qqueue to safely modify entities that might be despawned. If this is not done, it will panic
+        commands.queue(move |world: &mut World| {
+            if let Ok(mut entity_mut) = world.get_entity_mut(coin_entity) {
+                entity_mut.insert(CoinLanded);
+                entity_mut.remove::<CoinShouldLand>();
+                entity_mut.remove::<RigidBody>();
+                entity_mut.remove::<LinearVelocity>();
+                entity_mut.remove::<AngularVelocity>();
+                entity_mut.remove::<GravityScale>();
+                entity_mut.remove::<LockedAxes>();
+                // Keep CollisionLayers and Collider so player can still collect the coin, prevents panic
+            }
+        });
     }
 }
