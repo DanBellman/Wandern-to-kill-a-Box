@@ -24,6 +24,7 @@ use super::{Player, ScreenLimit};
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Projectile>();
     app.register_type::<Coin>();
+    app.register_type::<CoinLanded>();
     app.register_type::<LaserBeam>();
     app.init_resource::<Money>();
 
@@ -38,6 +39,7 @@ pub(super) fn plugin(app: &mut App) {
             handle_laser_continuous_damage,
             collect_coins,
             update_money_display,
+            disable_coin_physics_on_ground,
         )
             .in_set(AppSystems::Update)
             .in_set(PausableSystems)
@@ -74,6 +76,10 @@ impl Projectile {
 pub struct Coin {
     pub value: u32,
 }
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct CoinLanded;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -617,5 +623,42 @@ impl Material2d for CoinBoxMaterial {
 impl Material2d for CoinMaterial {
     fn fragment_shader() -> ShaderRef {
         SHADER_ASSET_PATH.into()
+    }
+}
+
+/// Disable physics for coins that have landed on the ground
+fn disable_coin_physics_on_ground(
+    mut collision_events: EventReader<CollisionStarted>,
+    coin_query: Query<Entity, (With<Coin>, Without<CoinLanded>)>,
+    ground_query: Query<Entity, With<Name>>,
+    name_query: Query<&Name>,
+    mut commands: Commands,
+) {
+    for CollisionStarted(entity1, entity2) in collision_events.read() {
+        // Check if a coin hit the invisible ground
+        let (coin_entity, ground_entity) = if coin_query.contains(*entity1) {
+            (*entity1, *entity2)
+        } else if coin_query.contains(*entity2) {
+            (*entity2, *entity1)
+        } else {
+            continue;
+        };
+
+        // Check if the other entity is the invisible ground
+        if let Ok(name) = name_query.get(ground_entity) {
+            if name.as_str() == "Invisible Ground" {
+                // Only modify the coin if it still exists and hasn't been collected
+                if coin_query.get(coin_entity).is_ok() {
+                    commands.entity(coin_entity)
+                        .insert(CoinLanded)
+                        .remove::<RigidBody>()
+                        .remove::<LinearVelocity>()
+                        .remove::<AngularVelocity>()
+                        .remove::<GravityScale>()
+                        .remove::<LockedAxes>();
+                        // Keep CollisionLayers and Collider so player can still collect the coin
+                }
+            }
+        }
     }
 }

@@ -51,7 +51,7 @@ impl Plugin for AppPlugin {
                     primary_window: Some(Window {
                         title: "2d Box Slayer".to_string(),
                         fit_canvas_to_parent: true,
-                        present_mode: bevy::window::PresentMode::Immediate, // No VSync, no frame rate cap
+                        present_mode: bevy::window::PresentMode::AutoVsync,
                         ..default()
                     }),
                     ..default()

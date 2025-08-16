@@ -2,7 +2,7 @@
 //!
 //! Additional settings and accessibility options should go here.
 
-use bevy::{audio::Volume, input::common_conditions::input_just_pressed, prelude::*, ui::Val::*};
+use bevy::{audio::Volume, input::common_conditions::input_just_pressed, prelude::*, ui::Val::*, window::PresentMode};
 
 use crate::{menus::Menu, screens::Screen, theme::prelude::*};
 
@@ -14,9 +14,15 @@ pub(super) fn plugin(app: &mut App) {
     );
 
     app.register_type::<GlobalVolumeLabel>();
+    app.register_type::<FramerateLimitLabel>();
+    app.init_resource::<FramerateLimitSettings>();
     app.add_systems(
         Update,
-        update_global_volume_label.run_if(in_state(Menu::Settings)),
+        (
+            update_global_volume_label,
+            update_framerate_limit_label,
+            apply_framerate_limit_changes,
+        ).run_if(in_state(Menu::Settings)),
     );
 }
 
@@ -52,6 +58,14 @@ fn settings_grid() -> impl Bundle {
                 }
             ),
             global_volume_widget(),
+            (
+                widget::label("Framerate Limit"),
+                Node {
+                    justify_self: JustifySelf::End,
+                    ..default()
+                }
+            ),
+            framerate_limit_widget(),
         ],
     )
 }
@@ -122,4 +136,144 @@ fn go_back(screen: Res<State<Screen>>, mut next_menu: ResMut<NextState<Menu>>) {
     } else {
         Menu::Pause
     });
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum FramerateOption {
+    Unlimited,
+    Fps30,
+    Fps60,
+    Fps120,
+    Fps140,
+}
+
+impl FramerateOption {
+    fn display_name(&self) -> &'static str {
+        match self {
+            FramerateOption::Unlimited => "Unlimited",
+            FramerateOption::Fps30 => "30 FPS",
+            FramerateOption::Fps60 => "60 FPS",
+            FramerateOption::Fps120 => "120 FPS",
+            FramerateOption::Fps140 => "140 FPS",
+        }
+    }
+
+    fn to_present_mode(&self) -> PresentMode {
+        match self {
+            FramerateOption::Unlimited => PresentMode::Immediate,
+            FramerateOption::Fps30 => PresentMode::Fifo,
+            FramerateOption::Fps60 => PresentMode::Fifo,
+            FramerateOption::Fps120 => PresentMode::Mailbox,
+            FramerateOption::Fps140 => PresentMode::Mailbox,
+        }
+    }
+
+    fn all_options() -> [FramerateOption; 5] {
+        [
+            FramerateOption::Unlimited,
+            FramerateOption::Fps30,
+            FramerateOption::Fps60,
+            FramerateOption::Fps120,
+            FramerateOption::Fps140,
+        ]
+    }
+
+    fn next(&self) -> FramerateOption {
+        let options = Self::all_options();
+        let current_index = options.iter().position(|&x| x == *self).unwrap_or(0);
+        let next_index = (current_index + 1) % options.len();
+        options[next_index]
+    }
+
+    fn previous(&self) -> FramerateOption {
+        let options = Self::all_options();
+        let current_index = options.iter().position(|&x| x == *self).unwrap_or(0);
+        let prev_index = if current_index == 0 {
+            options.len() - 1
+        } else {
+            current_index - 1
+        };
+        options[prev_index]
+    }
+}
+
+#[derive(Resource)]
+struct FramerateLimitSettings {
+    current: FramerateOption,
+    needs_update: bool,
+}
+
+impl Default for FramerateLimitSettings {
+    fn default() -> Self {
+        Self {
+            current: FramerateOption::Unlimited,
+            needs_update: false,
+        }
+    }
+}
+
+fn framerate_limit_widget() -> impl Bundle {
+    (
+        Name::new("Framerate Limit Widget"),
+        Node {
+            justify_self: JustifySelf::Start,
+            ..default()
+        },
+        children![
+            widget::button_small("<", decrease_framerate_limit),
+            (
+                Name::new("Current Framerate Limit"),
+                Node {
+                    padding: UiRect::horizontal(Px(10.0)),
+                    justify_content: JustifyContent::Center,
+                    min_width: Px(80.0),
+                    ..default()
+                },
+                children![(widget::label(""), FramerateLimitLabel)],
+            ),
+            widget::button_small(">", increase_framerate_limit),
+        ],
+    )
+}
+
+fn decrease_framerate_limit(
+    _: Trigger<Pointer<Click>>,
+    mut framerate_settings: ResMut<FramerateLimitSettings>,
+) {
+    framerate_settings.current = framerate_settings.current.previous();
+    framerate_settings.needs_update = true;
+}
+
+fn increase_framerate_limit(
+    _: Trigger<Pointer<Click>>,
+    mut framerate_settings: ResMut<FramerateLimitSettings>,
+) {
+    framerate_settings.current = framerate_settings.current.next();
+    framerate_settings.needs_update = true;
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+struct FramerateLimitLabel;
+
+fn update_framerate_limit_label(
+    framerate_settings: Res<FramerateLimitSettings>,
+    mut label: Single<&mut Text, With<FramerateLimitLabel>>,
+) {
+    if framerate_settings.is_changed() {
+        label.0 = framerate_settings.current.display_name().to_string();
+    }
+}
+
+fn apply_framerate_limit_changes(
+    mut framerate_settings: ResMut<FramerateLimitSettings>,
+    mut windows: Query<&mut Window>,
+) {
+    if framerate_settings.needs_update {
+        framerate_settings.needs_update = false;
+
+        for mut window in &mut windows {
+            window.present_mode = framerate_settings.current.to_present_mode();
+        }
+    }
 }
