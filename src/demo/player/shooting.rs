@@ -27,6 +27,7 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<CoinLanded>();
     app.register_type::<CoinShouldLand>();
     app.register_type::<LaserBeam>();
+    app.register_type::<Money>();
     app.init_resource::<Money>();
 
     app.add_plugins(Material2dPlugin::<CoinMaterial>::default());
@@ -110,7 +111,8 @@ impl Default for Target {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Reflect)]
+#[reflect(Resource)]
 pub struct Money {
     pub amount: u32,
 }

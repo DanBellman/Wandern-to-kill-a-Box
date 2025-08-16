@@ -16,6 +16,12 @@ pub(super) fn plugin(app: &mut App) {
         settings::plugin,
         pause::plugin,
     ));
+
+    // Add save/load menu handling
+    app.add_systems(
+        OnEnter(Menu::SaveLoad),
+        crate::save::ui::spawn_save_load_menu,
+    );
 }
 
 #[derive(States, Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
@@ -27,4 +33,5 @@ pub enum Menu {
     Credits,
     Settings,
     Pause,
+    SaveLoad,
 }

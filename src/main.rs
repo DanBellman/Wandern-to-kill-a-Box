@@ -11,6 +11,7 @@ mod demo;
 #[cfg(feature = "dev")]
 mod dev_tools;
 mod menus;
+mod save;
 mod screens;
 mod theme;
 
@@ -74,6 +75,7 @@ impl Plugin for AppPlugin {
             #[cfg(feature = "dev")]
             dev_tools::plugin,
             menus::plugin,
+            save::plugin,
             screens::plugin,
             theme::plugin,
             PerfUiPlugin::default(),

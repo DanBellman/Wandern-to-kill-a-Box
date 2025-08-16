@@ -60,6 +60,7 @@ pub struct ItemsData {
 }
 
 pub(super) fn plugin(app: &mut App) {
+    app.register_type::<PlayerUpgrades>();
     app.init_resource::<ShopState>();
     app.init_resource::<PlayerUpgrades>();
     app.add_systems(Startup, load_items_config);
@@ -261,7 +262,8 @@ pub struct ShopState {
     pub is_near_shop: bool,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
 pub struct PlayerUpgrades {
     // Weapons
     pub rapid_fire: bool,
