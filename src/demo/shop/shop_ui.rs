@@ -4,22 +4,27 @@ use crate::{
     AppSystems, PausableSystems,
     demo::{
         level::{UpgradeShop, WeaponShop},
-        player::{Player, Money},
+        player::{Money, Player},
     },
     screens::Screen,
 };
 use avian2d::prelude::*;
 use bevy::{ecs::system::IntoObserverSystem, prelude::*};
 
-use super::{
-    shop::{PlayerUpgrades, Shop, ShopItem, ShopItemButton, ShopState, buy_item, ItemsData, ItemType, WeaponType, UpgradeType},
+use super::shop::{
+    ItemType, ItemsData, PlayerUpgrades, Shop, ShopItem, ShopItemButton, ShopState, UpgradeType,
+    WeaponType, buy_item,
 };
 
 use crate::screens::Screen::Gameplay;
 use crate::theme::widget;
 use crate::theme::widget::shop_button;
 
-pub(crate) fn spawn_shop_ui(mut commands: Commands, shop_state: Res<ShopState>, items_data: Option<Res<ItemsData>>) {
+pub(crate) fn spawn_shop_ui(
+    mut commands: Commands,
+    shop_state: Res<ShopState>,
+    items_data: Option<Res<ItemsData>>,
+) {
     commands
         .spawn((
             widget::ui_root("Shop"),
@@ -33,12 +38,12 @@ pub(crate) fn spawn_shop_ui(mut commands: Commands, shop_state: Res<ShopState>, 
                     for (weapon_name, weapon_data) in &items_data.config.weapons.types {
                         let weapon_type = WeaponType::from_string(&weapon_data.weapon_type);
                         parent.spawn(widget::shop_button(
-                            weapon_name, 
+                            weapon_name,
                             buy_item,
                             ShopItemButton {
                                 item_name: weapon_name.clone(),
                                 item_type: ItemType::Weapon(weapon_type),
-                            }
+                            },
                         ));
                     }
                 }
@@ -48,12 +53,12 @@ pub(crate) fn spawn_shop_ui(mut commands: Commands, shop_state: Res<ShopState>, 
                     for (upgrade_name, upgrade_data) in &items_data.config.upgrades.types {
                         let upgrade_type = UpgradeType::from_string(&upgrade_data.upgrade_type);
                         parent.spawn(widget::shop_button(
-                            upgrade_name, 
+                            upgrade_name,
                             buy_item,
                             ShopItemButton {
                                 item_name: upgrade_name.clone(),
                                 item_type: ItemType::Upgrade(upgrade_type),
-                            }
+                            },
                         ));
                     }
                 }

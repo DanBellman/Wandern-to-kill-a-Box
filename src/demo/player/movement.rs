@@ -9,12 +9,12 @@
 //! This implementation is designed for 2D horizontal movement in a side-scrolling game.
 //! The system supports both keyboard (A/D keys) and gamepad (left stick) input.
 
-use avian2d::prelude::*;
-use bevy::{prelude::*, window::PrimaryWindow};
-use bevy::{platform::collections::HashSet, prelude::*};
-use std::any::TypeId;
-use bevy_enhanced_input::prelude::*;
 use crate::demo::player::Player;
+use avian2d::prelude::*;
+use bevy::{platform::collections::HashSet, prelude::*};
+use bevy::{prelude::*, window::PrimaryWindow};
+use bevy_enhanced_input::prelude::*;
+use std::any::TypeId;
 
 use crate::{AppSystems, PausableSystems, demo::shop::shop::PlayerUpgrades};
 
@@ -46,9 +46,7 @@ pub struct MovementSpeed {
 
 impl Default for MovementSpeed {
     fn default() -> Self {
-        Self {
-            max_speed: 400.0,
-        }
+        Self { max_speed: 400.0 }
     }
 }
 
@@ -93,7 +91,6 @@ fn apply_screen_limits(
         }
     }
 }
-
 
 //new
 #[derive(Debug, InputAction)]

@@ -3,12 +3,12 @@
 use crate::{
     AppSystems, PausableSystems,
     demo::{
-        level::{WeaponShop, UpgradeShop},
-        player::{Player, Money},
+        level::{UpgradeShop, WeaponShop},
+        player::{Money, Player},
     },
 };
-use bevy::prelude::*;
 use avian2d::prelude::*;
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -78,19 +78,17 @@ pub(super) fn plugin(app: &mut App) {
 
 fn load_items_config(mut commands: Commands) {
     let file_path = "assets/configurations/items.ron";
-    
+
     match std::fs::read_to_string(file_path) {
-        Ok(content) => {
-            match ron::from_str::<ItemsConfig>(&content) {
-                Ok(config) => {
-                    commands.insert_resource(ItemsData { config });
-                    info!("Successfully loaded items configuration");
-                }
-                Err(e) => {
-                    error!("Failed to parse items.ron: {}", e);
-                }
+        Ok(content) => match ron::from_str::<ItemsConfig>(&content) {
+            Ok(config) => {
+                commands.insert_resource(ItemsData { config });
+                info!("Successfully loaded items configuration");
             }
-        }
+            Err(e) => {
+                error!("Failed to parse items.ron: {}", e);
+            }
+        },
         Err(e) => {
             error!("Failed to read items.ron file: {}", e);
         }
@@ -108,14 +106,13 @@ fn handle_player_shop_collisions(
 ) {
     // Handle collision started events (player enters shop sensor)
     for CollisionStarted(entity1, entity2) in collision_started.read() {
-        let (player_entity, shop_entity) = 
-            if player_query.contains(*entity1) {
-                (Some(*entity1), *entity2)
-            } else if player_query.contains(*entity2) {
-                (Some(*entity2), *entity1)
-            } else {
-                continue; // Neither entity is the player
-            };
+        let (player_entity, shop_entity) = if player_query.contains(*entity1) {
+            (Some(*entity1), *entity2)
+        } else if player_query.contains(*entity2) {
+            (Some(*entity2), *entity1)
+        } else {
+            continue; // Neither entity is the player
+        };
 
         if player_entity.is_some() {
             // Check which type of shop the player collided with
@@ -133,14 +130,13 @@ fn handle_player_shop_collisions(
 
     // Handle collision ended events (player leaves shop sensor)
     for CollisionEnded(entity1, entity2) in collision_ended.read() {
-        let (player_entity, shop_entity) = 
-            if player_query.contains(*entity1) {
-                (Some(*entity1), *entity2)
-            } else if player_query.contains(*entity2) {
-                (Some(*entity2), *entity1)
-            } else {
-                continue; // Neither entity is the player
-            };
+        let (player_entity, shop_entity) = if player_query.contains(*entity1) {
+            (Some(*entity1), *entity2)
+        } else if player_query.contains(*entity2) {
+            (Some(*entity2), *entity1)
+        } else {
+            continue; // Neither entity is the player
+        };
 
         if player_entity.is_some() {
             // Check if the player left a shop area
@@ -432,7 +428,10 @@ pub fn buy_item(
 
     // Try to get the ShopItemButton component from the triggered entity
     let Ok((_, button)) = button_query.get(trigger.target()) else {
-        warn!("Could not find ShopItemButton component on clicked entity: {:?}", trigger.target());
+        warn!(
+            "Could not find ShopItemButton component on clicked entity: {:?}",
+            trigger.target()
+        );
         return;
     };
 
@@ -482,7 +481,10 @@ pub fn buy_item(
     }
 
     if money.amount < cost {
-        warn!("Not enough money to buy {} (need {}, have {})", button.item_name, cost, money.amount);
+        warn!(
+            "Not enough money to buy {} (need {}, have {})",
+            button.item_name, cost, money.amount
+        );
         return;
     }
 
@@ -508,7 +510,6 @@ pub fn buy_item(
         },
     }
 }
-
 
 /// Handle weapon switching with Q/Tab keys
 fn handle_weapon_switching(keys: Res<ButtonInput<KeyCode>>, mut upgrades: ResMut<PlayerUpgrades>) {

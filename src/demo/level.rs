@@ -8,7 +8,7 @@ use bevy::window::PrimaryWindow;
 use crate::{
     AppSystems, PausableSystems,
     asset_tracking::LoadResource,
-    demo::player::{PlayerAssets, player, CoinBoxMaterial, Target},
+    demo::player::{CoinBoxMaterial, PlayerAssets, Target, player},
     screens::Screen,
 };
 

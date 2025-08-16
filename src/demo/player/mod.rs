@@ -10,7 +10,7 @@ use crate::PausableSystems;
 pub mod movement;
 pub mod shooting;
 
-pub use movement::{MovementSpeed, ScreenLimit, DefaultInputContext};
+pub use movement::{DefaultInputContext, MovementSpeed, ScreenLimit};
 pub use shooting::*;
 
 pub(super) fn plugin(app: &mut App) {
@@ -22,7 +22,11 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_systems(
         Update,
-        (update_player_size_on_window_resize, add_input_context_to_player).in_set(PausableSystems),
+        (
+            update_player_size_on_window_resize,
+            add_input_context_to_player,
+        )
+            .in_set(PausableSystems),
     );
 }
 
@@ -40,9 +44,7 @@ pub fn player(max_speed: f32, player_assets: &PlayerAssets) -> impl Bundle {
             ..default()
         },
         Transform::from_translation(Vec3::new(0.0, -240.0, 0.0)), // Same ground level as coins
-        MovementSpeed {
-            max_speed,
-        },
+        MovementSpeed { max_speed },
         ScreenLimit,
         RigidBody::Kinematic,
         LinearVelocity::ZERO,
@@ -59,7 +61,6 @@ pub fn player(max_speed: f32, player_assets: &PlayerAssets) -> impl Bundle {
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[reflect(Component)]
 pub struct Player;
-
 
 fn update_player_size_on_window_resize(
     mut player_query: Query<&mut Sprite, With<Player>>,

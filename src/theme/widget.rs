@@ -94,10 +94,10 @@ where
 
 /// A shop button that places the shop item component on the click-receiving entity
 pub fn shop_button<E, B, M, I, T>(
-    text: impl Into<String>, 
+    text: impl Into<String>,
     action: I,
-    shop_component: T
-) -> impl Bundle 
+    shop_component: T,
+) -> impl Bundle
 where
     E: Event,
     B: Bundle,

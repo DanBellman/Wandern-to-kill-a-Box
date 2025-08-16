@@ -7,11 +7,11 @@
 use bevy::prelude::*;
 use std::time::Duration;
 
-use bevy_enhanced_input::prelude::*;
 use crate::{
     AppSystems, PausableSystems,
     demo::player::{Player, movement::Move},
 };
+use bevy_enhanced_input::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
     // Animate and play sound effects based on controls.
@@ -39,9 +39,10 @@ fn update_animation_movement(
 ) {
     let move_input = **move_action;
     let dx = move_input.x;
-    
+
     for (mut sprite, mut animation) in &mut player_query {
-        if dx.abs() > 0.1 {  // Add small threshold for controller dead zone
+        if dx.abs() > 0.1 {
+            // Add small threshold for controller dead zone
             sprite.flip_x = dx < 0.0;
         }
 
