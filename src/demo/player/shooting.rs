@@ -15,11 +15,11 @@ use crate::{
     AppSystems, PausableSystems,
     demo::hud::{CoinBuffer, ScoreText},
     demo::level::LevelAssets,
-    demo::movement::ScreenLimit,
-    demo::player::Player,
     demo::shop::shop::{PlayerUpgrades, WeaponType},
     screens::Screen,
 };
+
+use super::{Player, ScreenLimit};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Projectile>();

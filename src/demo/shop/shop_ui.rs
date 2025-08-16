@@ -4,8 +4,7 @@ use crate::{
     AppSystems, PausableSystems,
     demo::{
         level::{UpgradeShop, WeaponShop},
-        player::Player,
-        shooting::Money,
+        player::{Player, Money},
     },
     screens::Screen,
 };

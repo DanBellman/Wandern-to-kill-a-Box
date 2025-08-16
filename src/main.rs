@@ -25,6 +25,7 @@ use bevy::{
     prelude::*,
     render::camera::ScalingMode,
 };
+use bevy_enhanced_input::prelude::*;
 use iyes_perf_ui::prelude::*;
 
 fn main() -> AppExit {
@@ -56,6 +57,7 @@ impl Plugin for AppPlugin {
                     ..default()
                 }),
             PhysicsPlugins::default(),
+            EnhancedInputPlugin,
             FrameTimeDiagnosticsPlugin {
                 max_history_length: 1,
                 smoothing_factor: 0.0,

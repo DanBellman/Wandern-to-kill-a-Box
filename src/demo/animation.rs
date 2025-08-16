@@ -7,9 +7,10 @@
 use bevy::prelude::*;
 use std::time::Duration;
 
+use bevy_enhanced_input::prelude::*;
 use crate::{
     AppSystems, PausableSystems,
-    demo::{movement::MovementController /*player::PlayerAssets*/},
+    demo::player::{Player, movement::Move},
 };
 
 pub(super) fn plugin(app: &mut App) {
@@ -33,15 +34,18 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Update the sprite direction and animation state (idling/walking).
 fn update_animation_movement(
-    mut player_query: Query<(&MovementController, &mut Sprite, &mut PlayerAnimation)>,
+    mut player_query: Query<(&mut Sprite, &mut PlayerAnimation), With<Player>>,
+    move_action: Single<&Action<Move>>,
 ) {
-    for (controller, mut sprite, mut animation) in &mut player_query {
-        let dx = controller.intent.x;
-        if dx != 0.0 {
+    let move_input = **move_action;
+    let dx = move_input.x;
+    
+    for (mut sprite, mut animation) in &mut player_query {
+        if dx.abs() > 0.1 {  // Add small threshold for controller dead zone
             sprite.flip_x = dx < 0.0;
         }
 
-        let animation_state = if controller.intent == Vec2::ZERO {
+        let animation_state = if move_input.length() < 0.1 {
             PlayerAnimationState::Idling
         } else {
             PlayerAnimationState::Walking

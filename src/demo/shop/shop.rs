@@ -4,8 +4,7 @@ use crate::{
     AppSystems, PausableSystems,
     demo::{
         level::{WeaponShop, UpgradeShop},
-        player::Player,
-        shooting::Money,
+        player::{Player, Money},
     },
 };
 use bevy::prelude::*;
