@@ -2,7 +2,10 @@
 //!
 //! Additional settings and accessibility options should go here.
 
-use bevy::{audio::Volume, input::common_conditions::input_just_pressed, prelude::*, ui::Val::*, window::PresentMode};
+use bevy::{
+    audio::Volume, input::common_conditions::input_just_pressed, prelude::*, ui::Val::*,
+    window::PresentMode,
+};
 
 use crate::{menus::Menu, screens::Screen, theme::prelude::*};
 
@@ -22,7 +25,8 @@ pub(super) fn plugin(app: &mut App) {
             update_global_volume_label,
             update_framerate_limit_label,
             apply_framerate_limit_changes,
-        ).run_if(in_state(Menu::Settings)),
+        )
+            .run_if(in_state(Menu::Settings)),
     );
 }
 

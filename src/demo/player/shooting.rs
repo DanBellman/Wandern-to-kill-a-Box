@@ -649,14 +649,15 @@ fn disable_coin_physics_on_ground(
             if name.as_str() == "Invisible Ground" {
                 // Only modify the coin if it still exists and hasn't been collected
                 if coin_query.get(coin_entity).is_ok() {
-                    commands.entity(coin_entity)
+                    commands
+                        .entity(coin_entity)
                         .insert(CoinLanded)
                         .remove::<RigidBody>()
                         .remove::<LinearVelocity>()
                         .remove::<AngularVelocity>()
                         .remove::<GravityScale>()
                         .remove::<LockedAxes>();
-                        // Keep CollisionLayers and Collider so player can still collect the coin
+                    // Keep CollisionLayers and Collider so player can still collect the coin
                 }
             }
         }
